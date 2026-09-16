@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+exec claude \
+  "You are the PRODUCT agent. Read CLAUDE.md and agent/roles/product.md before doing anything. Read the current repository state. If this is a brand-new product, begin by asking what product we are building and what problem it should solve."

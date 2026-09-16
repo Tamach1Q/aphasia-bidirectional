@@ -1,0 +1,63 @@
+{
+  "direction": "horizontal",
+  "split": 0.5,
+  "children": [
+    {
+      "direction": "vertical",
+      "split": 0.5,
+      "children": [
+        {
+          "pane": {
+            "surfaces": [
+              {
+                "type": "terminal",
+                "name": "PRODUCT",
+                "command": "./scripts/agents/product",
+                "focus": true
+              }
+            ]
+          }
+        },
+        {
+          "pane": {
+            "surfaces": [
+              {
+                "type": "terminal",
+                "name": "DEV",
+                "command": "./scripts/dev"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "direction": "vertical",
+      "split": 0.5,
+      "children": [
+        {
+          "pane": {
+            "surfaces": [
+              {
+                "type": "terminal",
+                "name": "PIPELINE",
+                "command": "./scripts/agents/pipeline"
+              }
+            ]
+          }
+        },
+        {
+          "pane": {
+            "surfaces": [
+              {
+                "type": "terminal",
+                "name": "STATUS",
+                "command": "./scripts/status"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

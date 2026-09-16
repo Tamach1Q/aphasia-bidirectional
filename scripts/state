@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+from pathlib import Path
+
+root = Path(__file__).resolve().parent.parent
+current_file = root / "agent/current-task"
+
+if not current_file.exists():
+    print("No current task", file=sys.stderr)
+    sys.exit(1)
+
+task = current_file.read_text().strip()
+state_file = root / "agent/tasks" / task / "state.json"
+
+if not state_file.exists():
+    print(f"Missing state: {state_file}", file=sys.stderr)
+    sys.exit(1)
+
+state = json.loads(state_file.read_text())
+
+if len(sys.argv) == 1:
+    print(json.dumps(state, indent=2))
+    sys.exit(0)
+
+if sys.argv[1] == "get":
+    key = sys.argv[2]
+    value = state.get(key, "")
+    if isinstance(value, (dict, list)):
+        print(json.dumps(value))
+    else:
+        print(value)
+    sys.exit(0)
+
+if sys.argv[1] == "set":
+    key = sys.argv[2]
+    value = sys.argv[3]
+
+    if value == "true":
+        value = True
+    elif value == "false":
+        value = False
+
+    state[key] = value
+    state_file.write_text(
+        json.dumps(state, indent=2, ensure_ascii=False) + "\n"
+    )
+    sys.exit(0)
+
+print("usage: scripts/state [get KEY | set KEY VALUE]")
+sys.exit(1)

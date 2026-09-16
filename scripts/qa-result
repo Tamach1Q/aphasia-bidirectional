@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage:"
+  echo "  ./scripts/qa-result pass"
+  echo "  ./scripts/qa-result code 'reason'"
+  echo "  ./scripts/qa-result product 'reason'"
+  exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+RESULT="$1"
+REASON="${2:-}"
+
+case "$RESULT" in
+  pass)
+    "$ROOT/scripts/state" set stage human
+    "$ROOT/scripts/state" set status ready_for_human
+    "$ROOT/scripts/state" set route human
+    ;;
+
+  code)
+    printf '%s\n' "$REASON" > "$ROOT/agent/tasks/$(cat "$ROOT/agent/current-task")/qa-failure.md"
+
+    "$ROOT/scripts/state" set stage coding
+    "$ROOT/scripts/state" set status qa_failed
+    "$ROOT/scripts/state" set route coding
+    ;;
+
+  product)
+    printf '%s\n' "$REASON" > "$ROOT/agent/tasks/$(cat "$ROOT/agent/current-task")/qa-failure.md"
+
+    "$ROOT/scripts/state" set stage product
+    "$ROOT/scripts/state" set status qa_failed
+    "$ROOT/scripts/state" set route product
+    ;;
+
+  *)
+    echo "Unknown result: $RESULT"
+    exit 1
+    ;;
+esac
+
+echo "✓ QA result recorded: $RESULT"

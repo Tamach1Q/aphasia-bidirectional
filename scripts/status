@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -u
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+count_log_lines() {
+  local pattern="$1"
+  local task="$2"
+  local n=0
+
+  while IFS= read -r -d '' file; do
+    c="$(
+      grep -c "$pattern" "$file" 2>/dev/null || true
+    )"
+    n=$((n + ${c:-0}))
+  done < <(
+    find "$ROOT/agent/runtime" \
+      -maxdepth 1 \
+      -type f \
+      -name "${task}*.log" \
+      -print0 2>/dev/null
+  )
+
+  echo "$n"
+}
+
+latest_review_round() {
+  local task="$1"
+
+  find "$ROOT/agent/runtime" \
+    -maxdepth 1 \
+    -type f \
+    -name "${task}*.log" \
+    -print0 2>/dev/null \
+    | xargs -0 grep -hE 'Round [0-9]+:' 2>/dev/null \
+    | tail -1 \
+    | sed -E 's/.*Round ([0-9]+):.*/\1/' \
+    || true
+}
+
+render_status() {
+  if [ ! -f agent/current-task ]; then
+    cat <<EOF
+PRODUCT OS STATUS
+=================
+
+No current task.
+EOF
+    return
+  fi
+
+  TASK="$(cat agent/current-task)"
+
+  STAGE="$(./scripts/state get stage 2>/dev/null || echo -)"
+  STATE="$(./scripts/state get status 2>/dev/null || echo -)"
+  ROUTE="$(./scripts/state get route 2>/dev/null || echo -)"
+  PR="$(./scripts/state get pr_number 2>/dev/null || true)"
+  FIX="$(./scripts/state get qa_fix_attempt 2>/dev/null || true)"
+
+  CLAUDE_CALLS="$(count_log_lines 'Starting Claude' "$TASK")"
+  CODEX_CALLS="$(count_log_lines 'Starting Codex' "$TASK")"
+  ROUND="$(latest_review_round "$TASK")"
+
+  [ -z "$PR" ] && PR="-"
+  [ -z "$FIX" ] && FIX="0"
+  [ -z "$ROUND" ] && ROUND="-"
+
+  echo "PRODUCT OS STATUS"
+  echo "================="
+  echo
+
+  printf "%-18s %s\n" "Task" "$TASK"
+  printf "%-18s %s\n" "Stage" "$STAGE"
+  printf "%-18s %s\n" "Status" "$STATE"
+  printf "%-18s %s\n" "Route" "$ROUTE"
+  printf "%-18s %s\n" "PR" "$PR"
+
+  echo
+  echo "Pipeline policy"
+  echo "---------------"
+  printf "%-18s %s\n" "Claude review" "Sonnet"
+  printf "%-18s %s\n" "Review context" "compact"
+  printf "%-18s %s\n" "Max rounds" "2"
+  printf "%-18s %s\n" "QA" "Codex"
+  printf "%-18s %s\n" "Latest round" "$ROUND"
+  printf "%-18s %s\n" "QA fix attempts" "$FIX"
+
+  echo
+  echo "Current-run calls"
+  echo "-----------------"
+  printf "%-18s %s\n" "Claude review" "$CLAUDE_CALLS"
+  printf "%-18s %s\n" "Codex loop" "$CODEX_CALLS"
+}
+
+LAST_RENDER=""
+
+# Hide cursor while dashboard is running.
+printf '\033[?25l'
+
+cleanup() {
+  printf '\033[?25h'
+}
+
+trap cleanup EXIT INT TERM
+
+while true; do
+  CURRENT_RENDER="$(render_status)"
+
+  # Redraw only when something actually changed.
+  if [ "$CURRENT_RENDER" != "$LAST_RENDER" ]; then
+    # Move to top-left, write new contents, clear anything left below.
+    printf '\033[H%s\033[J' "$CURRENT_RENDER"
+    LAST_RENDER="$CURRENT_RENDER"
+  fi
+
+  sleep 2
+done

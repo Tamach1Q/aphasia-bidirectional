@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+echo
+echo "Product OS DEV"
+echo "repo: $ROOT"
+echo
+
+choose_pm() {
+  if [ -f pnpm-lock.yaml ] && command -v pnpm >/dev/null 2>&1; then
+    echo pnpm
+  elif [ -f yarn.lock ] && command -v yarn >/dev/null 2>&1; then
+    echo yarn
+  else
+    echo npm
+  fi
+}
+
+has_script() {
+  local name="$1"
+
+  node - "$name" <<'NODE' >/dev/null 2>&1
+const fs = require("fs");
+
+const name = process.argv[2];
+const p = JSON.parse(fs.readFileSync("package.json", "utf8"));
+
+process.exit(p.scripts && p.scripts[name] ? 0 : 1);
+NODE
+}
+
+while true; do
+
+  if [ -f package.json ] && command -v node >/dev/null 2>&1; then
+
+    PM="$(choose_pm)"
+
+    if has_script dev; then
+      echo "→ $PM run dev"
+      exec "$PM" run dev
+    fi
+
+    if has_script start; then
+      echo "→ $PM run start"
+      exec "$PM" run start
+    fi
+  fi
+
+  if [ -f web/index.html ]; then
+    echo "→ static web server: http://localhost:4173"
+    exec python3 -m http.server \
+      4173 \
+      --directory web
+  fi
+
+  if [ -f index.html ]; then
+    echo "→ static web server: http://localhost:4173"
+    exec python3 -m http.server 4173
+  fi
+
+  echo "Waiting for a runnable dev target..."
+  sleep 5
+done

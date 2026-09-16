@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: ./scripts/run-qa <pr-number>"
+  exit 1
+fi
+
+PR="$1"
+ROOT="$(git rev-parse --show-toplevel)"
+TASK="$(cat "$ROOT/agent/current-task")"
+
+RUNTIME="$ROOT/agent/runtime/$TASK"
+mkdir -p "$RUNTIME"
+
+RESULT="$RUNTIME/qa-pr-$PR.json"
+SCHEMA="$RUNTIME/qa-schema.json"
+FAILURE="$ROOT/agent/tasks/$TASK/qa-failure.md"
+
+echo
+echo "========================================"
+echo " CODEX QA : $TASK / PR #$PR"
+echo "========================================"
+echo
+
+BRANCH="$(
+  gh pr view "$PR" \
+    --json headRefName \
+    --jq '.headRefName'
+)"
+
+if [ -z "$BRANCH" ]; then
+  echo "Could not determine PR branch."
+  exit 1
+fi
+
+echo "QA branch: $BRANCH"
+
+git fetch origin \
+  "$BRANCH:refs/remotes/origin/$BRANCH"
+
+QA_PARENT="$(
+  mktemp -d \
+    "${TMPDIR:-/tmp}/product-os-qa-${TASK}.XXXXXX"
+)"
+
+QA_DIR="$QA_PARENT/repo"
+
+cleanup() {
+  cd "$ROOT" 2>/dev/null || true
+  git worktree remove --force "$QA_DIR" 2>/dev/null || true
+  rm -rf "$QA_PARENT" 2>/dev/null || true
+}
+
+trap cleanup EXIT INT TERM
+
+git worktree add \
+  --detach \
+  "$QA_DIR" \
+  "origin/$BRANCH"
+
+cat > "$SCHEMA" <<'JSON'
+{
+  "type": "object",
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "implementation_bug",
+        "spec_ambiguity",
+        "ux_problem",
+        "environment_issue"
+      ]
+    },
+    "summary": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "verdict",
+    "summary",
+    "evidence",
+    "notes"
+  ],
+  "additionalProperties": false
+}
+JSON
+
+PROMPT="$(cat <<QA_PROMPT
+You are the independent Product OS QA agent.
+
+For this invocation, the QA role overrides any generic coding role
+described elsewhere in the repository.
+
+Task:
+$TASK
+
+Pull request:
+#$PR
+
+You are inside an isolated disposable checkout containing the
+reviewed PR implementation.
+
+Read:
+- agent/roles/qa.md
+- agent/tasks/$TASK/task.md
+- the relevant specification under specs/
+- product requirements under docs/ when relevant
+
+Perform black-box QA against the acceptance criteria.
+
+Prefer deterministic existing tests and direct observable checks.
+Do not explore unrelated parts of the repository.
+
+You may run tests, browser tooling, and read files.
+
+Do NOT:
+- edit production code,
+- commit,
+- push,
+- merge,
+- change Product OS state.
+
+Return only the requested structured verdict.
+
+Use implementation_bug only when behavior violates a clear requirement.
+Use spec_ambiguity when the requirement itself prevents a reliable judgment.
+Use ux_problem only for a material product/usability failure.
+Use environment_issue when QA itself cannot be completed reliably.
+QA_PROMPT
+)"
+
+echo "Starting fresh Codex QA..."
+echo
+
+set +e
+
+codex exec \
+  --ephemeral \
+  --sandbox read-only \
+  --cd "$QA_DIR" \
+  --output-schema "$SCHEMA" \
+  --output-last-message "$RESULT" \
+  "$PROMPT"
+
+QA_CODE=$?
+
+set -e
+
+if [ "$QA_CODE" -ne 0 ]; then
+  echo "Codex QA process failed with exit code $QA_CODE"
+  exit "$QA_CODE"
+fi
+
+python3 - "$RESULT" <<'PY_VALIDATE'
+import json
+import sys
+
+path = sys.argv[1]
+
+with open(path) as f:
+    result = json.load(f)
+
+allowed = {
+    "passed",
+    "implementation_bug",
+    "spec_ambiguity",
+    "ux_problem",
+    "environment_issue",
+}
+
+if result.get("verdict") not in allowed:
+    raise SystemExit(
+        f"Invalid QA verdict: {result.get('verdict')!r}"
+    )
+
+print(json.dumps(
+    result,
+    ensure_ascii=False,
+    indent=2
+))
+PY_VALIDATE
+
+VERDICT="$(
+  python3 - "$RESULT" <<'PY_VERDICT'
+import json
+import sys
+
+with open(sys.argv[1]) as f:
+    print(json.load(f)["verdict"])
+PY_VERDICT
+)"
+
+echo
+echo "QA verdict: $VERDICT"
+echo
+
+case "$VERDICT" in
+
+  passed)
+    rm -f "$FAILURE"
+
+    "$ROOT/scripts/state" set stage product
+    "$ROOT/scripts/state" set route product
+    "$ROOT/scripts/state" set status ready_for_product
+    ;;
+
+  implementation_bug)
+    {
+      echo "# QA implementation failure"
+      echo
+      cat "$RESULT"
+    } > "$FAILURE"
+
+    "$ROOT/scripts/state" set stage coding
+    "$ROOT/scripts/state" set route coding
+    "$ROOT/scripts/state" set status qa_failed
+    ;;
+
+  spec_ambiguity|ux_problem)
+    {
+      echo "# QA product escalation"
+      echo
+      cat "$RESULT"
+    } > "$FAILURE"
+
+    "$ROOT/scripts/state" set stage product
+    "$ROOT/scripts/state" set route product
+    "$ROOT/scripts/state" set status needs_product
+    ;;
+
+  environment_issue)
+    {
+      echo "# QA environment issue"
+      echo
+      cat "$RESULT"
+    } > "$FAILURE"
+
+    "$ROOT/scripts/state" set stage qa
+    "$ROOT/scripts/state" set route human
+    "$ROOT/scripts/state" set status needs_human
+    ;;
+
+  *)
+    echo "Unknown QA verdict: $VERDICT"
+    exit 1
+    ;;
+esac
+
+echo "✓ Codex QA routing complete: $VERDICT"

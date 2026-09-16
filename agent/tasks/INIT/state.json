@@ -1,0 +1,6 @@
+{
+  "task": "INIT",
+  "stage": "product",
+  "status": "discovery",
+  "route": "product"
+}

@@ -1,0 +1,592 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+AGENT_LOOP="$HOME/tools/coding-review-agent-loop/.venv/bin/agent-loop"
+
+RUNTIME="$ROOT/agent/runtime"
+
+mkdir -p "$RUNTIME"
+
+LOCK="$RUNTIME/orchestrator.lock"
+
+if ! mkdir "$LOCK" 2>/dev/null; then
+  echo "Product OS orchestrator is already running."
+  exit 1
+fi
+
+cleanup() {
+  rmdir "$LOCK" 2>/dev/null || true
+}
+
+trap cleanup EXIT INT TERM
+
+cmux_status() {
+  local value="$1"
+
+  if command -v cmux >/dev/null 2>&1; then
+    cmux set-status pipeline "$value" \
+      --workspace "${CMUX_WORKSPACE_ID:-}" \
+      >/dev/null 2>&1 || true
+  fi
+}
+
+cmux_log() {
+  local message="$1"
+
+  if command -v cmux >/dev/null 2>&1; then
+    cmux log \
+      --workspace "${CMUX_WORKSPACE_ID:-}" \
+      --level info \
+      -- "$message" \
+      >/dev/null 2>&1 || true
+  fi
+}
+
+notify() {
+  local title="$1"
+  local body="$2"
+
+  if command -v cmux >/dev/null 2>&1; then
+    cmux notify \
+      --title "$title" \
+      --body "$body" \
+      >/dev/null 2>&1 || true
+  fi
+}
+
+extract_pr() {
+  local log="$1"
+
+  grep -Eo 'PR #[0-9]+' "$log" 2>/dev/null \
+    | tail -1 \
+    | grep -Eo '[0-9]+' \
+    || true
+}
+
+echo
+echo "Product OS orchestrator v0.4.1"
+echo "repo: $ROOT"
+echo
+
+LAST=""
+
+while true; do
+
+  CURRENT="$ROOT/agent/current-task"
+
+  if [ ! -f "$CURRENT" ]; then
+    sleep 2
+    continue
+  fi
+
+  TASK="$(cat "$CURRENT")"
+
+  STATE="$ROOT/agent/tasks/$TASK/state.json"
+
+  if [ ! -f "$STATE" ]; then
+    sleep 2
+    continue
+  fi
+
+  STATUS="$("$ROOT/scripts/state" get status)"
+  ROUTE="$("$ROOT/scripts/state" get route)"
+
+  SIGNATURE="$TASK:$STATUS:$ROUTE"
+
+  CHANGED=0
+
+  if [ "$SIGNATURE" != "$LAST" ]; then
+    echo "[$(date +%H:%M:%S)] $SIGNATURE"
+    cmux_log "$SIGNATURE"
+    LAST="$SIGNATURE"
+    CHANGED=1
+  fi
+
+  # ==========================================================
+  # PRODUCT -> CODING / REVIEW
+  # ==========================================================
+
+  if [ "$STATUS" = "ready_for_code" ] \
+     && [ "$ROUTE" = "coding" ]; then
+
+    TASK_FILE="$ROOT/agent/tasks/$TASK/task.md"
+
+    if [ ! -f "$TASK_FILE" ]; then
+      echo "Missing task.md"
+      sleep 3
+      continue
+    fi
+
+    if ! gh repo view >/dev/null 2>&1; then
+
+      "$ROOT/scripts/state" set status needs_human
+      "$ROOT/scripts/state" set route human
+
+      notify \
+        "Product OS blocked" \
+        "GitHub repository is not configured."
+
+      sleep 3
+      continue
+    fi
+
+    REPO="$(
+      gh repo view \
+        --json nameWithOwner \
+        --jq .nameWithOwner
+    )"
+
+    TASK_TEXT="$(cat "$TASK_FILE")"
+
+    QA_FAILURE="$ROOT/agent/tasks/$TASK/qa-failure.md"
+
+    if [ -f "$QA_FAILURE" ]; then
+      TASK_TEXT="$TASK_TEXT
+
+Additional QA findings:
+
+$(cat "$QA_FAILURE")"
+    fi
+
+    LOOP_LOG="$RUNTIME/$TASK-agent-loop.log"
+
+    "$ROOT/scripts/state" set status coding_reviewing
+
+    cmux_status "coding/review"
+
+    echo
+    echo "========================================"
+    echo " CODE ↔ REVIEW : $TASK"
+    echo "========================================"
+    echo
+
+    set +e
+
+    "$AGENT_LOOP" task \
+      "$TASK_TEXT" \
+      --repo "$REPO" \
+      --coder codex \
+      --reviewer claude \
+      --claude-model sonnet \
+      --max-rounds 2 \
+      --pr-review-context-mode compact \
+      --dangerous-agent-permissions \
+      2>&1 | tee "$LOOP_LOG"
+
+    EXIT_CODE=${PIPESTATUS[0]}
+
+    set -e
+
+    PR="$(extract_pr "$LOOP_LOG")"
+
+    # --------------------------------------------------------
+    # Safe salvage:
+    # task may have created a valid PR but failed during
+    # handoff/protocol validation. Resume the existing PR
+    # instead of rerunning implementation.
+    # --------------------------------------------------------
+
+    if [ "$EXIT_CODE" -ne 0 ] && [ -n "$PR" ]; then
+
+      echo
+      echo "Task loop exited non-zero but PR #$PR exists."
+      echo "Attempting safe PR resume..."
+      echo
+
+      set +e
+
+      "$AGENT_LOOP" pr "$PR" \
+        --repo "$REPO" \
+        --coder codex \
+        --reviewer claude \
+        --claude-model sonnet \
+        --max-rounds 2 \
+        --pr-review-context-mode compact \
+        --dangerous-agent-permissions \
+        2>&1 | tee -a "$LOOP_LOG"
+
+      EXIT_CODE=${PIPESTATUS[0]}
+
+      set -e
+
+      PR="$(extract_pr "$LOOP_LOG")"
+    fi
+
+    if [ "$EXIT_CODE" -eq 0 ]; then
+
+      if [ -z "$PR" ]; then
+
+        "$ROOT/scripts/state" set status needs_human
+        "$ROOT/scripts/state" set route human
+
+        notify \
+          "Product OS blocked" \
+          "Code/review succeeded but PR number could not be determined."
+
+        sleep 2
+        continue
+      fi
+
+      rm -f "$QA_FAILURE"
+
+      "$ROOT/scripts/state" set qa_fix_attempt 0
+      "$ROOT/scripts/state" set pr_number "$PR"
+      "$ROOT/scripts/state" set stage qa
+      "$ROOT/scripts/state" set route qa
+      "$ROOT/scripts/state" set status ready_for_qa
+
+      cmux_status "qa"
+
+      notify \
+        "Code review passed" \
+        "$TASK / PR #$PR is entering automated QA."
+
+    else
+
+      "$ROOT/scripts/state" set status needs_human
+      "$ROOT/scripts/state" set route human
+
+      cmux_status "blocked"
+
+      notify \
+        "Agent loop blocked" \
+        "$TASK needs human attention."
+
+    fi
+  fi
+
+  # ==========================================================
+  # AUTOMATED QA
+  # ==========================================================
+
+  if [ "$STATUS" = "ready_for_qa" ] \
+     && [ "$ROUTE" = "qa" ]; then
+
+    PR="$("$ROOT/scripts/state" get pr_number)"
+
+    if [ -z "$PR" ]; then
+
+      "$ROOT/scripts/state" set status needs_human
+      "$ROOT/scripts/state" set route human
+
+      notify \
+        "QA blocked" \
+        "$TASK has no PR number."
+
+      sleep 2
+      continue
+    fi
+
+    "$ROOT/scripts/state" set status qa_running
+
+    cmux_status "qa running"
+
+    echo
+    echo "Starting automated QA for PR #$PR"
+    echo
+
+    set +e
+
+    "$ROOT/scripts/run-qa" "$PR"
+
+    QA_EXIT=$?
+
+    set -e
+
+    if [ "$QA_EXIT" -ne 0 ]; then
+
+      "$ROOT/scripts/state" set stage qa
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status needs_human
+
+      cmux_status "qa blocked"
+
+      notify \
+        "QA execution failed" \
+        "$TASK needs human attention."
+    fi
+  fi
+
+
+  # ==========================================================
+  # QA BUG -> EXISTING PR FIX LOOP
+  # ==========================================================
+
+  if [ "$STATUS" = "qa_failed" ] \
+     && [ "$ROUTE" = "coding" ]; then
+
+    PR="$("$ROOT/scripts/state" get pr_number)"
+
+    if [ -z "$PR" ]; then
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status needs_human
+
+      notify \
+        "QA fix blocked" \
+        "$TASK has no PR number."
+
+      sleep 2
+      continue
+    fi
+
+    REPO="$(
+      gh repo view \
+        --json nameWithOwner \
+        --jq .nameWithOwner
+    )"
+
+    CURRENT_ATTEMPT="$(
+      "$ROOT/scripts/state" get qa_fix_attempt
+    )"
+
+    if ! [[ "$CURRENT_ATTEMPT" =~ ^[0-9]+$ ]]; then
+      CURRENT_ATTEMPT=0
+    fi
+
+    MAX_FIX_ATTEMPTS="${PRODUCT_OS_MAX_QA_FIX_ATTEMPTS:-2}"
+
+    if [ "$CURRENT_ATTEMPT" -ge "$MAX_FIX_ATTEMPTS" ]; then
+
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status needs_human
+
+      cmux_status "qa fix limit"
+
+      notify \
+        "QA fix limit reached" \
+        "$TASK failed QA after $CURRENT_ATTEMPT automated fix attempt(s)."
+
+      sleep 2
+      continue
+    fi
+
+    ATTEMPT=$((CURRENT_ATTEMPT + 1))
+
+    "$ROOT/scripts/state" set qa_fix_attempt "$ATTEMPT"
+    "$ROOT/scripts/state" set status fix_reviewing
+
+    QA_RESULT="$RUNTIME/$TASK/qa-pr-$PR.json"
+    QA_FAILURE="$ROOT/agent/tasks/$TASK/qa-failure.md"
+
+    MARKER="<!-- PRODUCT_OS_QA_FAILURE:$TASK:$PR:$ATTEMPT -->"
+
+    COMMENT_FILE="$RUNTIME/$TASK-qa-fix-$ATTEMPT-comment.md"
+
+    {
+      echo "$MARKER"
+      echo
+      echo "## Product OS QA blocking failure"
+      echo
+      echo "Automated black-box QA classified PR #$PR as an implementation bug."
+      echo
+      echo "This is a blocking requirement for the current PR."
+      echo
+      echo "Fix the implementation without expanding product scope."
+      echo
+
+      if [ -f "$QA_RESULT" ]; then
+        echo '```json'
+        cat "$QA_RESULT"
+        echo '```'
+      elif [ -f "$QA_FAILURE" ]; then
+        cat "$QA_FAILURE"
+      else
+        echo "QA failed, but no detailed report was found."
+      fi
+
+      echo
+      echo "After fixing, verify the affected behavior and keep the change in this PR."
+      echo
+      echo "-- Human Reviewer"
+    } > "$COMMENT_FILE"
+
+    EXISTING_COMMENTS="$(
+      gh pr view "$PR" \
+        --repo "$REPO" \
+        --json comments \
+        --jq '.comments[].body' \
+        2>/dev/null || true
+    )"
+
+    if ! printf '%s\n' "$EXISTING_COMMENTS" \
+         | grep -Fq "$MARKER"; then
+
+      echo
+      echo "Posting QA failure to PR #$PR..."
+      echo
+
+      gh pr comment "$PR" \
+        --repo "$REPO" \
+        --body-file "$COMMENT_FILE"
+    else
+      echo "QA failure comment already exists for attempt $ATTEMPT."
+    fi
+
+    FIX_LOG="$RUNTIME/$TASK-qa-fix-$ATTEMPT-agent-loop.log"
+
+    echo
+    echo "========================================"
+    echo " QA FIX ↔ REVIEW : $TASK / PR #$PR"
+    echo " attempt: $ATTEMPT / $MAX_FIX_ATTEMPTS"
+    echo "========================================"
+    echo
+
+    cmux_status "qa fix/review"
+
+    set +e
+
+    "$AGENT_LOOP" pr "$PR" \
+      --repo "$REPO" \
+      --coder codex \
+      --reviewer claude \
+      --claude-model sonnet \
+      --max-rounds 2 \
+      --pr-review-context-mode compact \
+      --dangerous-agent-permissions \
+      2>&1 | tee "$FIX_LOG"
+
+    FIX_EXIT=${PIPESTATUS[0]}
+
+    set -e
+
+    if [ "$FIX_EXIT" -eq 0 ]; then
+
+      "$ROOT/scripts/state" set stage qa
+      "$ROOT/scripts/state" set route qa
+      "$ROOT/scripts/state" set status ready_for_qa
+
+      cmux_status "qa retry"
+
+      notify \
+        "QA fix reviewed" \
+        "$TASK / PR #$PR is entering QA again."
+
+    else
+
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status needs_human
+
+      cmux_status "qa fix blocked"
+
+      notify \
+        "QA fix loop blocked" \
+        "$TASK / PR #$PR needs human attention."
+
+    fi
+  fi
+
+
+  # ==========================================================
+  # QA PASSED -> PRODUCT FOLLOW-UP
+  # ==========================================================
+
+  if [ "$STATUS" = "ready_for_product" ] \
+     && [ "$ROUTE" = "product" ]; then
+
+    "$ROOT/scripts/state" set status product_running
+
+    cmux_status "product follow-up"
+
+    notify \
+      "QA passed" \
+      "$TASK passed QA. Product follow-up is starting."
+
+    echo
+    echo "Starting Product follow-up for $TASK"
+    echo
+
+    set +e
+
+    "$ROOT/scripts/run-product-followup" "$TASK"
+
+    PRODUCT_EXIT=$?
+
+    set -e
+
+    if [ "$PRODUCT_EXIT" -eq 0 ]; then
+
+      NEW_STATUS="$("$ROOT/scripts/state" get status)"
+
+      if [ "$NEW_STATUS" != "ready_for_code" ]; then
+        "$ROOT/scripts/state" set stage human
+        "$ROOT/scripts/state" set route human
+        "$ROOT/scripts/state" set status ready_for_human
+
+        notify \
+          "Product OS stopped" \
+          "Product follow-up finished without a valid handoff."
+      fi
+
+    elif [ "$PRODUCT_EXIT" -eq 20 ]; then
+
+      "$ROOT/scripts/state" set stage human
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status ready_for_human
+
+      cmux_status "human product decision"
+
+      notify \
+        "Product decision needed" \
+        "$TASK passed QA, but the next product step needs you."
+
+    else
+
+      "$ROOT/scripts/state" set stage human
+      "$ROOT/scripts/state" set route human
+      "$ROOT/scripts/state" set status needs_human
+
+      cmux_status "product blocked"
+
+      notify \
+        "Product follow-up failed" \
+        "$TASK needs human attention."
+    fi
+  fi
+
+  # ==========================================================
+  # ROUTING DISPLAYS
+  # ==========================================================
+
+  if [ "$STATUS" = "needs_product" ] \
+     && [ "$ROUTE" = "product" ]; then
+
+    cmux_status "product needed"
+
+    if [ "$CHANGED" -eq 1 ]; then
+      notify \
+        "Product decision needed" \
+        "$TASK has a specification or UX issue."
+    fi
+  fi
+
+  if [ "$STATUS" = "needs_coding" ] \
+     && [ "$ROUTE" = "coding" ]; then
+
+    cmux_status "coding needed"
+
+    if [ "$CHANGED" -eq 1 ]; then
+      notify \
+        "Coding fix needed" \
+        "$TASK failed QA. Findings are in qa-failure.md."
+    fi
+  fi
+
+  # ==========================================================
+  # HUMAN GATE
+  # ==========================================================
+
+  if [ "$STATUS" = "ready_for_human" ]; then
+
+    cmux_status "human review"
+
+    notify \
+      "Ready for human review" \
+      "$TASK passed automated QA."
+
+    "$ROOT/scripts/state" set status waiting_for_human
+  fi
+
+  sleep 2
+done

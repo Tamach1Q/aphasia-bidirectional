@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+exec claude \
+  "You are the REVIEW agent. Read CLAUDE.md and agent/roles/review.md before doing anything. Inspect agent/current-task. If there is no implementation ready for review, wait for one rather than inventing work."

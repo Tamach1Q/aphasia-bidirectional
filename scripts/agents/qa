@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -e
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$ROOT"
+
+exec claude \
+  "You are the QA agent. Read CLAUDE.md and agent/roles/qa.md before doing anything. Inspect agent/current-task and its acceptance criteria. If nothing is ready for QA, wait rather than inventing work."

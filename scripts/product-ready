@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -lt 1 ]; then
+  echo "usage: ./scripts/product-ready <task-id>"
+  exit 1
+fi
+
+TASK="$1"
+ROOT="$(git rev-parse --show-toplevel)"
+DIR="$ROOT/agent/tasks/$TASK"
+
+if [ ! -f "$DIR/task.md" ]; then
+  echo "Missing $DIR/task.md"
+  echo
+  echo "Product must write implementation instructions there first."
+  exit 1
+fi
+
+if [ ! -f "$DIR/state.json" ]; then
+cat > "$DIR/state.json" <<STATE
+{
+  "task": "$TASK",
+  "stage": "product",
+  "status": "draft",
+  "route": "product"
+}
+STATE
+fi
+
+printf '%s\n' "$TASK" > "$ROOT/agent/current-task"
+
+# Product成果物だけをGitHubへ確定させる
+git add docs specs .specify "$DIR/task.md"
+
+if ! git diff --cached --quiet; then
+  git commit -m "product: handoff $TASK"
+  git push
+fi
+
+# push完了後にローカルorchestratorへ通知
+"$ROOT/scripts/state" set stage coding
+"$ROOT/scripts/state" set route coding
+"$ROOT/scripts/state" set status ready_for_code
+
+echo "✓ $TASK → ready_for_code"
