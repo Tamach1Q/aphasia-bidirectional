@@ -1,7 +1,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const modeA = new URLSearchParams(location.search).get('mode') === 'a';
-  const state = { listening:false, expressive:false, round:0, ambiguityIndex:0, noneCounts:{}, known:[], answers:{}, fragment:'', confirmed:false, message:'' };
+  const state = { partnerSessionActive:false, partnerMicActive:false, listening:false, expressive:false, round:0, ambiguityIndex:0, noneCounts:{}, known:[], answers:{}, clarificationHistory:[], fragment:'', confirmed:false, message:'' };
   const ambiguities = [
     { key:'time', test:/今日|きょう|明日|あした|昨日|きのう|今週|来週|朝|午後|夜|金曜|月曜/, question:'いつのことですか？', choices:['今日のこと','明日のこと','別の日のこと'], alternatives:['今週のこと','来週のこと','日にちは関係ない'] },
     { key:'topic', test:/病院|医者|診察|学校|仕事|電車|家族|娘|息子|予約|薬/, question:'何についてですか？', choices:['病院・診察のこと','家族のこと','予定や予約のこと'], alternatives:['仕事のこと','移動のこと','別のこと'] },
@@ -9,10 +9,13 @@
   ];
 
   // ---- shared UI helpers ----
-  function icon(name) { const paths = { mic:'<path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path>', keyboard:'<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 13h12M8 16h8"></path>', volume:'<path d="M4 10v4h3l4 3V7l-4 3H4Z"></path><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"></path>', reset:'<path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path>', rotate:'<path d="M20 11a8.1 8.1 0 0 0-14.9-4L3 10"></path><path d="M3 5v5h5"></path><path d="M4 13a8.1 8.1 0 0 0 14.9 4L21 14"></path><path d="M21 19v-5h-5"></path>' }; return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`; }
+  function icon(name) { const paths = { mic:'<path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path>', keyboard:'<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 13h12M8 16h8"></path>', volume:'<path d="M4 10v4h3l4 3V7l-4 3H4Z"></path><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"></path>', reset:'<path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path>' }; return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`; }
   function setStatus(text, active = false) { $('statusText').textContent = text; $('statusDot').classList.toggle('active', active); }
   function logLatency(kind, started, detail) { const ms = Math.round(performance.now() - started); const label = `${kind}: ${ms}ms`; console.info(`[latency] ${label}`, detail || ''); return ms; }
-  function setSession(active) { state.listening = active; $('listenButton').hidden = active; $('stopListenButton').hidden = !active; $('sessionState').textContent = active ? '聞いています' : '停止中'; $('sessionState').classList.toggle('live', active); }
+  function setSession(sessionActive = state.partnerSessionActive, micActive = state.partnerMicActive) { state.partnerSessionActive = sessionActive; state.partnerMicActive = micActive; state.listening = micActive; $('listenButton').hidden = sessionActive; $('stopListenButton').hidden = !sessionActive; $('sessionState').textContent = !sessionActive ? '停止中' : micActive ? '聞いています' : '一時停止中'; $('sessionState').classList.toggle('live', sessionActive && micActive); }
+  function friendlyRecognitionError(error) { return ({ 'not-allowed':'マイクが使えないようです。文字でも入力できます。', 'no-speech':'声を聞き取れませんでした。もう一度試せます。', network:'音声を処理できませんでした。もう一度試してください。' })[error] || '音声を使えませんでした。文字でも入力できます。'; }
+  function pausePartnerListening() { if (!state.partnerSessionActive) return; state.partnerMicActive = false; state.listening = false; if (partnerRecognition) { partnerRecognition.onend = null; try { partnerRecognition.stop(); } catch (_) {} } setSession(true, false); $('partnerTranscript').textContent = '一時停止中'; }
+  function resumePartnerListening() { if (state.partnerSessionActive && !state.partnerMicActive) beginListening(); }
   function setBottomBar(visible) { $('bottomBar').hidden = !visible; }
   function setMain(html) { $('mainArea').innerHTML = html; }
   function showChoices(box, items, onClick) { box.innerHTML = ''; items.forEach((item) => { const button = document.createElement('button'); button.className = `choice${item.length > 15 ? ' long-choice' : ''}`; button.type = 'button'; button.textContent = item; button.addEventListener('click', () => onClick(item)); box.appendChild(button); }); }
@@ -50,32 +53,32 @@
   // ---- conversation listening (background, always reachable) ----
   let partnerRecognition;
   function beginListening() {
-    setSession(true); setStatus('相手の話を聞いています', true); $('partnerTranscript').textContent = '聞いています…';
+    setSession(true, true); setStatus('相手の話を聞いています', true); $('partnerTranscript').textContent = '聞いています…';
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { setStatus('音声認識がないため、デモの相手のことばを表示します。'); showPartnerResult('金曜日の午後か、月曜日の午前はどうですか？'); return; }
     partnerRecognition = new Recognition(); partnerRecognition.lang = 'ja-JP'; partnerRecognition.continuous = true; partnerRecognition.interimResults = true;
     let asrStarted = performance.now(); partnerRecognition.onresult = (event) => { let finalText = ''; let interim = ''; for (let i=event.resultIndex; i<event.results.length; i += 1) { const line = event.results[i][0].transcript; if (event.results[i].isFinal) finalText += line; else interim += line; } if (interim) $('partnerTranscript').textContent = interim; if (finalText) { logLatency('asr: partner transcription', asrStarted, finalText); showPartnerResult(finalText); asrStarted = performance.now(); } };
-    partnerRecognition.onerror = (event) => setStatus(`音声認識を使えません（${event.error}）。文字入力も使えます。`);
-    partnerRecognition.onend = () => { if (state.listening) { try { partnerRecognition.start(); } catch (_) {} } };
+    partnerRecognition.onerror = (event) => { console.warn('partner recognition error', event.error); setStatus(friendlyRecognitionError(event.error)); };
+    partnerRecognition.onend = () => { if (state.partnerSessionActive && state.partnerMicActive) { try { partnerRecognition.start(); } catch (_) {} } };
     try { partnerRecognition.start(); } catch (_) { setStatus('音声認識を開始できませんでした。'); }
   }
-  function stopListening() { state.listening = false; if (partnerRecognition) { partnerRecognition.onend = null; partnerRecognition.stop(); } setSession(false); setStatus('聞くのを止めました。'); }
+  function stopListening() { state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; if (partnerRecognition) { partnerRecognition.onend = null; try { partnerRecognition.stop(); } catch (_) {} } setSession(false, false); $('partnerTranscript').textContent = 'ここに相手のことばが出ます。'; setStatus('聞くのを止めました。'); }
 
   // ---- CAPTURING_USER ----
   function renderCapturing() { setMain('<div class="capturing-view"><span class="rec-dot" aria-hidden="true"></span><p>あなたのことばを聞いています…</p><p class="small-note" id="capturingPartial"></p><p class="small-note">話し終わったら、下のボタンを押してください。</p></div>'); setBottomBar(true); }
 
   let expressiveRecognition; let expressivePartial = '';
   function startExpressive() {
-    if (state.listening) stopListening();
+    pausePartnerListening();
     state.expressive = true; expressivePartial = '';
-    $('speakButton').classList.add('recording'); $('speakLabel').textContent = '話し終わったら押してください';
+    $('speakButton').classList.add('recording'); $('speakLabel').textContent = '終わる';
     setStatus('あなたのことばを聞いています', true);
     renderCapturing();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { state.expressive = false; $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す'; setStatus('音声認識がないため、文字で入力してください。'); renderFragmentForm('娘　明日　病院', false); return; }
     expressiveRecognition = new Recognition(); expressiveRecognition.lang = 'ja-JP'; expressiveRecognition.continuous = false; expressiveRecognition.interimResults = true;
     const asrStarted = performance.now(); expressiveRecognition.onresult = (event) => { const text = event.results[0][0].transcript; expressivePartial = text; const partialEl = $('capturingPartial'); if (partialEl) partialEl.textContent = text; if (event.results[0].isFinal) { logLatency('asr: expressive fragment', asrStarted, text); finishExpressive(text); } };
-    expressiveRecognition.onerror = () => { finishExpressive('娘 明日 病院'); setStatus('音声を確認できないため、デモのことばを表示しました。'); };
+    expressiveRecognition.onerror = (event) => { console.warn('expressive recognition error', event.error); finishExpressive('娘 明日 病院'); setStatus(`${friendlyRecognitionError(event.error)} デモのことばを表示しました。`); };
     try { expressiveRecognition.start(); } catch (_) { finishExpressive('娘 明日 病院'); }
   }
   function finishExpressive(text) {
@@ -91,7 +94,7 @@
   function renderFragmentForm(prefill, autofocus) {
     setMain(`<form class="typed-form" id="typedForm"><label for="fragmentInput">短いことばで大丈夫です</label><textarea id="fragmentInput" rows="3" placeholder="例：娘　明日　病院">${escapeHtml(prefill || '')}</textarea><button class="button button-primary" type="submit">このことばで進む</button><button class="text-button" id="fragmentBackButton" type="button">やめる</button></form>`);
     $('typedForm').addEventListener('submit', (event) => { event.preventDefault(); beginFragment($('fragmentInput').value.trim()); });
-    $('fragmentBackButton').addEventListener('click', () => { renderIdle(); setStatus('準備できています'); });
+    $('fragmentBackButton').addEventListener('click', () => { renderIdle(); setStatus('準備できています'); resumePartnerListening(); });
     if (autofocus) $('fragmentInput').focus();
     setBottomBar(false);
   }
@@ -105,31 +108,30 @@
     setBottomBar(false);
     return actions;
   }
-  function beginFragment(fragment) { if (!fragment) return showFallback(); state.fragment = fragment; state.round = 0; state.noneCounts = {}; state.ambiguityIndex = 0; state.known = []; state.answers = {}; if (modeA) return showDirectCandidates(); nextClarification(); }
-  function showDirectCandidates() { const started = performance.now(); state.message = '娘は明日、病院へ行きます。'; logLatency('llm: direct candidates', started, state.fragment); renderFlowView(`<p class="eyebrow">候補から選ぶ</p><h2>伝えたいことに近いものはどれですか？</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, ['娘は明日、病院へ行きます。','娘の病院の予定を確認したいです。','明日の病院のことを伝えたいです。'], (item) => { state.message = item; showConfirm(); }); }
+  function beginFragment(fragment) { if (!fragment) return showFallback(); state.fragment = fragment; state.round = 0; state.noneCounts = {}; state.ambiguityIndex = 0; state.known = []; state.answers = {}; state.clarificationHistory = []; if (modeA) return showDirectCandidates(); nextClarification(); }
+  function showDirectCandidates() { const started = performance.now(); state.message = '娘は明日、病院へ行きます。'; setStatus('近いことばを選んでください。'); logLatency('llm: direct candidates', started, state.fragment); renderFlowView(`<p class="eyebrow">候補から選ぶ</p><h2>伝えたいことに近いものはどれですか？</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, ['娘は明日、病院へ行きます。','娘の病院の予定を確認したいです。','明日の病院のことを伝えたいです。'], (item) => { state.message = item; showConfirm(); }); }
   function nextClarification() { const item = ambiguities.slice(state.ambiguityIndex).find((candidate) => !state.known.includes(candidate.key) && (!candidate.test || !candidate.test.test(state.fragment))); if (!item || state.round >= 2) return showConfirm(); state.activeAmbiguity = item; showClarification(item, item.choices); }
-  function showClarification(item, choices, countsAsRound = true) { const started = performance.now(); if (countsAsRound) state.round += 1; logLatency('llm: clarification choices', started, item.key); renderFlowView(`<p class="eyebrow">確認</p><h2>${item.question}</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, choices, (choice) => { if (choice === 'どれも違います') return noneOfThese(); state.known.push(item.key); state.answers[item.key] = choice; state.ambiguityIndex = ambiguities.indexOf(item) + 1; if (state.round >= 2 || item.key === 'content') { state.message = buildMessage(); showConfirm(); } else nextClarification(); }, true); }
+  function showClarification(item, choices, countsAsRound = true) { const started = performance.now(); if (countsAsRound) state.round += 1; setStatus('答えを選んでください。'); logLatency('llm: clarification choices', started, item.key); renderFlowView(`<p class="eyebrow">確認</p><h2>${item.question}</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, choices, (choice) => { if (choice === 'どれも違います') return noneOfThese(); state.clarificationHistory.push({ item, answers: { ...state.answers }, known: [...state.known], round: state.round, ambiguityIndex: state.ambiguityIndex }); if (state.clarificationHistory.length > 2) state.clarificationHistory.shift(); state.known.push(item.key); state.answers[item.key] = choice; state.ambiguityIndex = ambiguities.indexOf(item) + 1; if (state.round >= 2 || item.key === 'content') { state.message = buildMessage(); showConfirm(); } else nextClarification(); }, true); }
   function noneOfThese() { const key = state.activeAmbiguity.key; if (!state.noneCounts[key]) { state.noneCounts[key] = 1; showClarification(state.activeAmbiguity, state.activeAmbiguity.alternatives, false); } else showFallback(); }
   function timeWord() { const answer = state.answers.time; if (answer) return ({'今日のこと':'今日','明日のこと':'明日','別の日のこと':'別の日','今週のこと':'今週','来週のこと':'来週','日にちは関係ない':''})[answer] ?? ''; if (/今日|きょう/.test(state.fragment)) return '今日'; if (/明日|あした/.test(state.fragment)) return '明日'; if (/昨日|きのう/.test(state.fragment)) return '昨日'; if (/来週/.test(state.fragment)) return '来週'; if (/今週/.test(state.fragment)) return '今週'; return ''; }
   function topicWord() { const answer = state.answers.topic; if (answer) return ({'病院・診察のこと':'病院','家族のこと':'家族','予定や予約のこと':'予定','仕事のこと':'仕事','移動のこと':'移動','別のこと':''})[answer] ?? ''; if (/病院|医者|診察/.test(state.fragment)) return '病院'; if (/学校/.test(state.fragment)) return '学校'; if (/仕事/.test(state.fragment)) return '仕事'; if (/電車/.test(state.fragment)) return '移動'; if (/家族|娘|息子/.test(state.fragment)) return '家族'; if (/予約|薬/.test(state.fragment)) return '予定'; return ''; }
   function contentClause(topic) { const answer = state.answers.content; if (answer === '行きたい・行きます') return topic ? `${topic}に行きたいです` : '行きたいです'; if (answer === '断りたいです') return topic ? `${topic}のことを断りたいです` : '断りたいです'; if (answer === '手伝ってほしいです') return topic ? `${topic}のことで手伝ってほしいです` : '手伝ってほしいです'; if (answer === '変更したいです') return topic ? `${topic}のことを変更したいです` : '変更したいです'; if (answer === '確認したいです' || !topic) return topic ? `${topic}のことを確認したいです` : '予定について伝えたいです'; return `${topic}のことを伝えたいです`; }
   function buildMessage() { const time = timeWord(); const topic = topicWord(); return `${time ? `${time}、` : ''}${contentClause(topic)}。`; }
-  function showConfirm() { state.confirmed = false; renderFlowView('<p class="eyebrow">確認してください</p><h2>このことばで合っていますか？</h2>', [], () => {}); const actions = $('flowActions'); actions.innerHTML = `<div class="confirm-message">${escapeHtml(state.message || buildMessage())}</div>`; addAction(actions, 'これで合っています', 'choice', () => { state.confirmed = true; showOutput(); }); addAction(actions, 'もどる', 'text-button', () => nextClarification()); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
-  function showFallback() { renderFlowView('<p class="eyebrow">もう少し教えてください</p><h2>うまく絞り込めませんでした。</h2><p class="flow-note">あなたのことばをもう一度選んでください。</p>', [], () => {}, false, 'fallback'); const actions = $('flowActions'); addAction(actions, `${icon('mic')} もう少し話す`, 'choice long-choice', startExpressive); addAction(actions, `${icon('keyboard')} 文字を足す`, 'choice', () => renderFragmentForm(state.fragment, true)); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
+  function showConfirm() { state.confirmed = false; setStatus('伝えることばを確認してください。'); renderFlowView('<p class="eyebrow">確認してください</p><h2>このことばで合っていますか？</h2>', [], () => {}); const actions = $('flowActions'); actions.innerHTML = `<div class="confirm-message">${escapeHtml(state.message || buildMessage())}</div>`; addAction(actions, 'これで伝える', 'button-primary', () => { state.confirmed = true; showOutput(); }); addAction(actions, 'もどる', 'text-button', () => { const snapshot = state.clarificationHistory.pop(); if (!snapshot) return showConfirm(); state.answers = { ...snapshot.answers }; state.known = [...snapshot.known]; state.round = snapshot.round; state.ambiguityIndex = snapshot.ambiguityIndex; state.message = buildMessage(); showClarification(snapshot.item, snapshot.item.choices); }); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
+  function showFallback() { setStatus('ことばをもう一度選んでください。'); renderFlowView('<p class="eyebrow">もう少し教えてください</p><h2>うまく絞り込めませんでした。</h2><p class="flow-note">あなたのことばをもう一度選んでください。</p>', [], () => {}, false, 'fallback'); const actions = $('flowActions'); addAction(actions, `${icon('mic')} もう少し話す`, 'choice long-choice', startExpressive); addAction(actions, `${icon('keyboard')} 文字を足す`, 'choice', () => renderFragmentForm(state.fragment, true)); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
 
   // ---- PARTNER_OUTPUT (full-viewport overlay, not part of the main-area swap) ----
   function showOutput() { if (!state.confirmed) return; const overlay = $('outputOverlay'); overlay.hidden = false; overlay.innerHTML = `<div class="partner-message">${escapeHtml(state.message)}</div><div class="output-controls"></div>`; const controls = overlay.querySelector('.output-controls'); addAction(controls, `${icon('volume')} 声で伝える`, 'button button-primary', speakConfirmed); addAction(controls, '自分の画面にもどる', 'text-button', closeOutput); }
-  function closeOutput() { $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = ''; setStatus('確認したことばだけが、相手に伝えられます。'); }
+  function closeOutput() { $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = ''; setStatus('確認したことばだけが、相手に伝えられます。'); resumePartnerListening(); }
   function speakConfirmed() { if (!state.confirmed) return; if (!window.speechSynthesis) return setStatus('この端末では読み上げを使えません。'); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(state.message); utterance.lang = 'ja-JP'; window.speechSynthesis.speak(utterance); setStatus('確認したことばを読み上げています。'); }
 
   function reset() {
     if (partnerRecognition) { state.listening = false; try { partnerRecognition.stop(); } catch (_) {} }
-    state.expressive = false; state.round = 0; state.noneCounts = {}; state.known = []; state.answers = {}; state.confirmed = false; state.fragment = ''; state.message = '';
+    state.partnerSessionActive = false; state.partnerMicActive = false; state.expressive = false; state.round = 0; state.noneCounts = {}; state.known = []; state.answers = {}; state.clarificationHistory = []; state.confirmed = false; state.fragment = ''; state.message = '';
     $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = '';
-    $('appShell').classList.remove('rotated');
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
     $('partnerTranscript').textContent = 'ここに相手のことばが出ます。';
-    setSession(false);
+    setSession(false, false);
     renderIdle();
     setStatus('準備できています');
   }
@@ -139,7 +141,6 @@
   $('speakButton').addEventListener('click', () => state.expressive ? finishExpressive($('fragmentInput') ? $('fragmentInput').value : expressivePartial) : startExpressive());
   $('typeButton').addEventListener('click', () => renderFragmentForm(state.fragment, true));
   $('resetButton').addEventListener('click', reset);
-  $('rotateButton').addEventListener('click', () => $('appShell').classList.toggle('rotated'));
 
   renderIdle();
 })();
