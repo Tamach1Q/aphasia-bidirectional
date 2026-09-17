@@ -1,0 +1,5 @@
+# Raw hearing/interview transcripts — contain personal information, never push.
+docs/sources/
+
+# OS cruft
+.DS_Store
