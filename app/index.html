@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f5f7f2">
-  <meta name="description" content="会話をわかりやすくする研究用プロトタイプ">
+  <meta name="description" content="会話をわかりやすくすることばのサポート">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <title>ことばの橋</title>
@@ -17,17 +17,17 @@
         <span id="statusText">準備できています</span>
       </div>
       <div class="topbar-buttons">
-        <button class="icon-button" id="rotateButton" type="button" aria-label="相手に向けて回転">↻</button>
-        <button class="icon-button" id="resetButton" type="button" aria-label="最初から">↺</button>
+        <button class="icon-button rotate-button" id="rotateButton" type="button" aria-label="相手に向けて回転"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8.1 8.1 0 0 0-14.9-4L3 10"></path><path d="M3 5v5h5"></path><path d="M4 13a8.1 8.1 0 0 0 14.9 4L21 14"></path><path d="M21 19v-5h-5"></path></svg></button>
+        <button class="icon-button reset-button" id="resetButton" type="button" aria-label="最初から"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path></svg></button>
       </div>
     </header>
 
     <section class="partner-zone" aria-labelledby="partnerTitle">
       <div class="partner-zone-row">
-        <p class="eyebrow" id="partnerTitle">相手が言ったこと</p>
+        <p class="eyebrow" id="partnerTitle">相手のことば</p>
         <span class="session-state" id="sessionState">停止中</span>
-        <button class="button button-listen" id="listenButton" type="button"><span aria-hidden="true">🎙</span> 聞く</button>
-        <button class="button button-stop" id="stopListenButton" type="button" hidden><span aria-hidden="true">■</span> 止める</button>
+        <button class="button button-listen" id="listenButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path></svg> 相手の話を聞く</button>
+        <button class="button button-stop" id="stopListenButton" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg> 止める</button>
       </div>
       <p class="transcript" id="partnerTranscript">ここに相手のことばが出ます。</p>
     </section>
@@ -36,10 +36,10 @@
 
     <section class="bottom-bar" id="bottomBar">
       <button class="speak-button" id="speakButton" type="button">
-        <span class="mic-mark" aria-hidden="true">🎙</span>
-        <span id="speakLabel">話して伝える</span>
+        <span class="mic-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path></svg></span>
+        <span id="speakLabel">話す</span>
       </button>
-      <button class="type-button" id="typeButton" type="button"><span aria-hidden="true">⌨</span> 文字で伝える</button>
+      <button class="type-button" id="typeButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 13h12M8 16h8"></path></svg> 文字で入力</button>
     </section>
   </main>
 

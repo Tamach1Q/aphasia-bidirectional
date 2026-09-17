@@ -9,13 +9,14 @@
   ];
 
   // ---- shared UI helpers ----
+  function icon(name) { const paths = { mic:'<path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path>', keyboard:'<rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M6 9h.01M9 9h.01M12 9h.01M15 9h.01M18 9h.01M6 13h12M8 16h8"></path>', volume:'<path d="M4 10v4h3l4 3V7l-4 3H4Z"></path><path d="M15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"></path>', reset:'<path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4v6h6"></path>', rotate:'<path d="M20 11a8.1 8.1 0 0 0-14.9-4L3 10"></path><path d="M3 5v5h5"></path><path d="M4 13a8.1 8.1 0 0 0 14.9 4L21 14"></path><path d="M21 19v-5h-5"></path>' }; return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`; }
   function setStatus(text, active = false) { $('statusText').textContent = text; $('statusDot').classList.toggle('active', active); }
   function logLatency(kind, started, detail) { const ms = Math.round(performance.now() - started); const label = `${kind}: ${ms}ms`; console.info(`[latency] ${label}`, detail || ''); return ms; }
   function setSession(active) { state.listening = active; $('listenButton').hidden = active; $('stopListenButton').hidden = !active; $('sessionState').textContent = active ? '聞いています' : '停止中'; $('sessionState').classList.toggle('live', active); }
   function setBottomBar(visible) { $('bottomBar').hidden = !visible; }
   function setMain(html) { $('mainArea').innerHTML = html; }
-  function showChoices(box, items, onClick) { box.innerHTML = ''; items.forEach((item) => { const button = document.createElement('button'); button.className = 'choice'; button.type = 'button'; button.textContent = item; button.addEventListener('click', () => onClick(item)); box.appendChild(button); }); }
-  function addAction(parent, text, className, callback) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.textContent = text; button.addEventListener('click', callback); parent.appendChild(button); }
+  function showChoices(box, items, onClick) { box.innerHTML = ''; items.forEach((item) => { const button = document.createElement('button'); button.className = `choice${item.length > 15 ? ' long-choice' : ''}`; button.type = 'button'; button.textContent = item; button.addEventListener('click', () => onClick(item)); box.appendChild(button); }); }
+  function addAction(parent, text, className, callback) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.innerHTML = text; button.addEventListener('click', callback); parent.appendChild(button); }
   function escapeHtml(text) { return text.replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); }
 
   // ---- IDLE ----
@@ -39,7 +40,7 @@
   }
   function showPartnerResult(text) { const started = performance.now(); $('partnerTranscript').textContent = text || 'ここに相手のことばが出ます。'; renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
   function showDontUnderstand() {
-    setMain('<div class="dont-understand-view"><p class="eyebrow">わかりません</p><h2>もう一度、聞いてみましょう。</h2><div class="flow-actions"><button class="choice" id="reListenButton" type="button">🎙 相手にもう一度話してもらう</button><button class="choice" id="goExpressiveButton" type="button">✍ 自分から伝える</button></div></div>');
+    setMain(`<div class="dont-understand-view"><p class="eyebrow">わかりません</p><h2>もう一度、聞いてみましょう。</h2><div class="flow-actions"><button class="choice long-choice" id="reListenButton" type="button">${icon('mic')} 相手にもう一度話してもらう</button><button class="choice" id="goExpressiveButton" type="button">${icon('mic')} 自分から伝える</button></div></div>`);
     $('reListenButton').addEventListener('click', beginListening);
     $('goExpressiveButton').addEventListener('click', startExpressive);
     setStatus('相手にもう一度話してもらうか、自分から伝えられます。');
@@ -71,7 +72,7 @@
     setStatus('あなたのことばを聞いています', true);
     renderCapturing();
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) { state.expressive = false; $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話して伝える'; setStatus('音声認識がないため、文字で入力してください。'); renderFragmentForm('娘　明日　病院', false); return; }
+    if (!Recognition) { state.expressive = false; $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す'; setStatus('音声認識がないため、文字で入力してください。'); renderFragmentForm('娘　明日　病院', false); return; }
     expressiveRecognition = new Recognition(); expressiveRecognition.lang = 'ja-JP'; expressiveRecognition.continuous = false; expressiveRecognition.interimResults = true;
     const asrStarted = performance.now(); expressiveRecognition.onresult = (event) => { const text = event.results[0][0].transcript; expressivePartial = text; const partialEl = $('capturingPartial'); if (partialEl) partialEl.textContent = text; if (event.results[0].isFinal) { logLatency('asr: expressive fragment', asrStarted, text); finishExpressive(text); } };
     expressiveRecognition.onerror = () => { finishExpressive('娘 明日 病院'); setStatus('音声を確認できないため、デモのことばを表示しました。'); };
@@ -80,7 +81,7 @@
   function finishExpressive(text) {
     if (!state.expressive) return; state.expressive = false;
     if (expressiveRecognition) expressiveRecognition.stop();
-    $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話して伝える';
+    $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
     const fragment = (text || expressivePartial || '').trim();
     renderFragmentForm(fragment, false);
     setStatus('ことばを確認して、進んでください。');
@@ -105,19 +106,19 @@
     return actions;
   }
   function beginFragment(fragment) { if (!fragment) return showFallback(); state.fragment = fragment; state.round = 0; state.noneCounts = {}; state.ambiguityIndex = 0; state.known = []; state.answers = {}; if (modeA) return showDirectCandidates(); nextClarification(); }
-  function showDirectCandidates() { const started = performance.now(); state.message = '娘は明日、病院へ行きます。'; logLatency('llm: direct candidates', started, state.fragment); renderFlowView(`<p class="eyebrow">候補から選ぶ</p><h2>伝えたいことに近いものはどれですか？</h2><p class="flow-note">ことば：${escapeHtml(state.fragment)}</p>`, ['娘は明日、病院へ行きます。','娘の病院の予定を確認したいです。','明日の病院のことを伝えたいです。'], (item) => { state.message = item; showConfirm(); }); }
+  function showDirectCandidates() { const started = performance.now(); state.message = '娘は明日、病院へ行きます。'; logLatency('llm: direct candidates', started, state.fragment); renderFlowView(`<p class="eyebrow">候補から選ぶ</p><h2>伝えたいことに近いものはどれですか？</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, ['娘は明日、病院へ行きます。','娘の病院の予定を確認したいです。','明日の病院のことを伝えたいです。'], (item) => { state.message = item; showConfirm(); }); }
   function nextClarification() { const item = ambiguities.slice(state.ambiguityIndex).find((candidate) => !state.known.includes(candidate.key) && (!candidate.test || !candidate.test.test(state.fragment))); if (!item || state.round >= 2) return showConfirm(); state.activeAmbiguity = item; showClarification(item, item.choices); }
-  function showClarification(item, choices, countsAsRound = true) { const started = performance.now(); if (countsAsRound) state.round += 1; logLatency('llm: clarification choices', started, item.key); renderFlowView(`<p class="eyebrow">${state.round} / 2 回目</p><h2>${item.question}</h2><p class="flow-note">短く選んでください。ことば：${escapeHtml(state.fragment)}</p>`, choices, (choice) => { if (choice === 'どれも違います') return noneOfThese(); state.known.push(item.key); state.answers[item.key] = choice; state.ambiguityIndex = ambiguities.indexOf(item) + 1; if (state.round >= 2 || item.key === 'content') { state.message = buildMessage(); showConfirm(); } else nextClarification(); }, true); }
+  function showClarification(item, choices, countsAsRound = true) { const started = performance.now(); if (countsAsRound) state.round += 1; logLatency('llm: clarification choices', started, item.key); renderFlowView(`<p class="eyebrow">確認</p><h2>${item.question}</h2><span class="fragment-chip">${escapeHtml(state.fragment)}</span>`, choices, (choice) => { if (choice === 'どれも違います') return noneOfThese(); state.known.push(item.key); state.answers[item.key] = choice; state.ambiguityIndex = ambiguities.indexOf(item) + 1; if (state.round >= 2 || item.key === 'content') { state.message = buildMessage(); showConfirm(); } else nextClarification(); }, true); }
   function noneOfThese() { const key = state.activeAmbiguity.key; if (!state.noneCounts[key]) { state.noneCounts[key] = 1; showClarification(state.activeAmbiguity, state.activeAmbiguity.alternatives, false); } else showFallback(); }
   function timeWord() { const answer = state.answers.time; if (answer) return ({'今日のこと':'今日','明日のこと':'明日','別の日のこと':'別の日','今週のこと':'今週','来週のこと':'来週','日にちは関係ない':''})[answer] ?? ''; if (/今日|きょう/.test(state.fragment)) return '今日'; if (/明日|あした/.test(state.fragment)) return '明日'; if (/昨日|きのう/.test(state.fragment)) return '昨日'; if (/来週/.test(state.fragment)) return '来週'; if (/今週/.test(state.fragment)) return '今週'; return ''; }
   function topicWord() { const answer = state.answers.topic; if (answer) return ({'病院・診察のこと':'病院','家族のこと':'家族','予定や予約のこと':'予定','仕事のこと':'仕事','移動のこと':'移動','別のこと':''})[answer] ?? ''; if (/病院|医者|診察/.test(state.fragment)) return '病院'; if (/学校/.test(state.fragment)) return '学校'; if (/仕事/.test(state.fragment)) return '仕事'; if (/電車/.test(state.fragment)) return '移動'; if (/家族|娘|息子/.test(state.fragment)) return '家族'; if (/予約|薬/.test(state.fragment)) return '予定'; return ''; }
   function contentClause(topic) { const answer = state.answers.content; if (answer === '行きたい・行きます') return topic ? `${topic}に行きたいです` : '行きたいです'; if (answer === '断りたいです') return topic ? `${topic}のことを断りたいです` : '断りたいです'; if (answer === '手伝ってほしいです') return topic ? `${topic}のことで手伝ってほしいです` : '手伝ってほしいです'; if (answer === '変更したいです') return topic ? `${topic}のことを変更したいです` : '変更したいです'; if (answer === '確認したいです' || !topic) return topic ? `${topic}のことを確認したいです` : '予定について伝えたいです'; return `${topic}のことを伝えたいです`; }
   function buildMessage() { const time = timeWord(); const topic = topicWord(); return `${time ? `${time}、` : ''}${contentClause(topic)}。`; }
-  function showConfirm() { state.confirmed = false; renderFlowView('<p class="eyebrow">確認してください</p><h2>このことばで合っていますか？</h2>', [], () => {}); const actions = $('flowActions'); actions.innerHTML = `<div class="confirm-message">${escapeHtml(state.message || buildMessage())}</div>`; addAction(actions, '✓ これで合っています', 'choice', () => { state.confirmed = true; showOutput(); }); addAction(actions, '← もどる', 'text-button', () => nextClarification()); addAction(actions, '↺ 最初から', 'text-button', reset); }
-  function showFallback() { renderFlowView('<p class="eyebrow">もう少し教えてください</p><h2>うまく絞り込めませんでした。</h2><p class="flow-note">あなたのことばをもう一度選んでください。</p>', [], () => {}, false, 'fallback'); const actions = $('flowActions'); addAction(actions, '🎙 もう少し話す', 'choice', startExpressive); addAction(actions, '⌨ 文字を足す', 'choice', () => renderFragmentForm(state.fragment, true)); addAction(actions, '↺ 最初から', 'text-button', reset); }
+  function showConfirm() { state.confirmed = false; renderFlowView('<p class="eyebrow">確認してください</p><h2>このことばで合っていますか？</h2>', [], () => {}); const actions = $('flowActions'); actions.innerHTML = `<div class="confirm-message">${escapeHtml(state.message || buildMessage())}</div>`; addAction(actions, 'これで合っています', 'choice', () => { state.confirmed = true; showOutput(); }); addAction(actions, 'もどる', 'text-button', () => nextClarification()); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
+  function showFallback() { renderFlowView('<p class="eyebrow">もう少し教えてください</p><h2>うまく絞り込めませんでした。</h2><p class="flow-note">あなたのことばをもう一度選んでください。</p>', [], () => {}, false, 'fallback'); const actions = $('flowActions'); addAction(actions, `${icon('mic')} もう少し話す`, 'choice long-choice', startExpressive); addAction(actions, `${icon('keyboard')} 文字を足す`, 'choice', () => renderFragmentForm(state.fragment, true)); addAction(actions, `${icon('reset')} 最初から`, 'text-button', reset); }
 
   // ---- PARTNER_OUTPUT (full-viewport overlay, not part of the main-area swap) ----
-  function showOutput() { if (!state.confirmed) return; const overlay = $('outputOverlay'); overlay.hidden = false; overlay.innerHTML = `<div class="partner-message">${escapeHtml(state.message)}</div><div class="output-controls"></div>`; const controls = overlay.querySelector('.output-controls'); addAction(controls, '🔊 声で伝える', 'button button-primary', speakConfirmed); addAction(controls, '自分の画面にもどる', 'text-button', closeOutput); }
+  function showOutput() { if (!state.confirmed) return; const overlay = $('outputOverlay'); overlay.hidden = false; overlay.innerHTML = `<div class="partner-message">${escapeHtml(state.message)}</div><div class="output-controls"></div>`; const controls = overlay.querySelector('.output-controls'); addAction(controls, `${icon('volume')} 声で伝える`, 'button button-primary', speakConfirmed); addAction(controls, '自分の画面にもどる', 'text-button', closeOutput); }
   function closeOutput() { $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = ''; setStatus('確認したことばだけが、相手に伝えられます。'); }
   function speakConfirmed() { if (!state.confirmed) return; if (!window.speechSynthesis) return setStatus('この端末では読み上げを使えません。'); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(state.message); utterance.lang = 'ja-JP'; window.speechSynthesis.speak(utterance); setStatus('確認したことばを読み上げています。'); }
 
@@ -126,7 +127,7 @@
     state.expressive = false; state.round = 0; state.noneCounts = {}; state.known = []; state.answers = {}; state.confirmed = false; state.fragment = ''; state.message = '';
     $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = '';
     $('appShell').classList.remove('rotated');
-    $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話して伝える';
+    $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
     $('partnerTranscript').textContent = 'ここに相手のことばが出ます。';
     setSession(false);
     renderIdle();
