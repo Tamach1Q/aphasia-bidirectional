@@ -10,66 +10,41 @@
   <title>ことばの橋</title>
 </head>
 <body>
-  <main class="app-shell">
+  <main class="app-shell" id="appShell">
     <header class="topbar">
-      <div>
-        <p class="eyebrow">ことばの橋</p>
-        <h1>会話をたすける</h1>
+      <div class="status-card" aria-live="polite">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">準備できています</span>
       </div>
-      <button class="icon-button" id="resetButton" type="button" aria-label="最初から">↺</button>
+      <div class="topbar-buttons">
+        <button class="icon-button" id="rotateButton" type="button" aria-label="相手に向けて回転">↻</button>
+        <button class="icon-button" id="resetButton" type="button" aria-label="最初から">↺</button>
+      </div>
     </header>
 
-    <section class="status-card" aria-live="polite">
-      <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">準備できています</span>
-      <span class="latency" id="latencyText"></span>
-    </section>
-
-    <section class="partner-section" aria-labelledby="partnerTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">相手のことば</p>
-          <h2 id="partnerTitle">会話を聞く</h2>
-        </div>
+    <section class="partner-zone" aria-labelledby="partnerTitle">
+      <div class="partner-zone-row">
+        <p class="eyebrow" id="partnerTitle">相手が言ったこと</p>
         <span class="session-state" id="sessionState">停止中</span>
+        <button class="button button-listen" id="listenButton" type="button"><span aria-hidden="true">🎙</span> 聞く</button>
+        <button class="button button-stop" id="stopListenButton" type="button" hidden><span aria-hidden="true">■</span> 止める</button>
       </div>
-      <p class="transcript-label">相手が言ったこと</p>
       <p class="transcript" id="partnerTranscript">ここに相手のことばが出ます。</p>
-      <div class="partner-actions">
-        <button class="button button-listen" id="listenButton" type="button"><span aria-hidden="true">🎙</span> 聞き始める</button>
-        <button class="button button-stop" id="stopListenButton" type="button" hidden><span aria-hidden="true">■</span> 聞くのを止める</button>
-      </div>
     </section>
 
-    <section class="meaning-card" id="meaningCard" aria-labelledby="meaningTitle">
-      <p class="eyebrow">いま、決めること</p>
-      <h2 id="meaningTitle">相手は何を聞いていますか？</h2>
-      <p class="meaning" id="partnerMeaning">相手が話すと、ここに短く表示します。</p>
-      <div class="choice-list" id="partnerChoices"></div>
-      <button class="text-button" id="dontUnderstandButton" type="button">わかりません</button>
-    </section>
+    <section class="main-area" id="mainArea" aria-live="polite"></section>
 
-    <section class="expressive-section" aria-labelledby="expressiveTitle">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">自分のことば</p>
-          <h2 id="expressiveTitle">伝えたいことを作る</h2>
-        </div>
-      </div>
+    <section class="bottom-bar" id="bottomBar">
       <button class="speak-button" id="speakButton" type="button">
         <span class="mic-mark" aria-hidden="true">🎙</span>
         <span id="speakLabel">話して伝える</span>
       </button>
       <button class="type-button" id="typeButton" type="button"><span aria-hidden="true">⌨</span> 文字で伝える</button>
-      <form class="typed-form" id="typedForm" hidden>
-        <label for="fragmentInput">短いことばで大丈夫です</label>
-        <textarea id="fragmentInput" rows="2" placeholder="例：娘　明日　病院"></textarea>
-        <button class="button button-primary" type="submit">このことばで進む</button>
-      </form>
     </section>
-
-    <section class="flow-panel" id="flowPanel" hidden aria-live="polite"></section>
   </main>
+
+  <section class="output-overlay" id="outputOverlay" hidden aria-live="polite" aria-label="相手に伝える画面"></section>
+
   <script src="app.js"></script>
 </body>
 </html>
