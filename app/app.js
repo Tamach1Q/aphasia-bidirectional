@@ -18,7 +18,8 @@
     if (!clean) return { meaning:'聞き取れませんでした。もう一度お願いします。', choices:[] };
     if (/金曜|月曜|いつ|何時|午後|午前/.test(clean)) return { meaning:'いつがいいですか？', choices:['金曜日の午後','月曜日の午前','どちらでもいい'] };
     if (/来る|行く|できますか|大丈夫|いいですか/.test(clean)) return { meaning:'できますか？', choices:['はい、できます','いいえ、できません','わかりません'] };
-    return { meaning:'相手の話について、返事を選びますか？', choices:['はい','いいえ','もう一度聞く'] };
+    if (/病院|医者|診察|学校|仕事|電車|家族|娘|息子|予約|薬|確認|変更|連絡/.test(clean)) return { meaning:'相手の話について、返事を選びますか？', choices:['はい','いいえ','もう一度聞く'] };
+    return { meaning:'うまく処理できませんでした。もう一度お願いします。', choices:[] };
   }
 
   function showPartnerResult(text) {
@@ -49,7 +50,7 @@
     expressiveRecognition.onerror = () => { finishExpressive('娘 明日 病院'); setStatus('音声を確認できないため、デモのことばを表示しました。'); };
     try { expressiveRecognition.start(); } catch (_) { finishExpressive('娘 明日 病院'); }
   }
-  function finishExpressive(text) { if (!state.expressive) return; state.expressive = false; if (expressiveRecognition) expressiveRecognition.stop(); $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話して伝える'; beginFragment((text || $('fragmentInput').value || '').trim()); }
+  function finishExpressive(text) { if (!state.expressive) return; state.expressive = false; if (expressiveRecognition) expressiveRecognition.stop(); $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話して伝える'; const fragment = (text || $('fragmentInput').value || '').trim(); $('fragmentInput').value = fragment; $('typedForm').hidden = false; $('fragmentInput').focus(); setStatus('ことばを確認して、進んでください。'); }
 
   function beginFragment(fragment) {
     if (!fragment) return showFallback(); state.fragment = fragment; state.round = 0; state.noneCounts = {}; state.ambiguityIndex = 0; state.known = []; $('flowPanel').hidden = false; if (modeA) return showDirectCandidates(); nextClarification();
