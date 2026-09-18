@@ -11,29 +11,30 @@
 
 This is intentionally not a production backend: no persistence, accounts, background audio, diarization, offline guarantee, or external analytics are included.
 
-## 2026-09-18 — optional LLM assist for open-ended partner questions
+## 2026-09-18 — LLM assist for open-ended partner questions
 
 The deterministic adapter above cannot generate contextually plausible answer candidates for an
 arbitrary open-ended ("5W1H") partner question (e.g. "どんな仕事をされていたんですか" →
 [営業/エンジニア/経営者]) — that needs real language understanding, not keyword matching. Added a
-narrow, optional LLM call for exactly that one step:
+narrow LLM call for exactly that one step:
 
 - **Scope**: only the receptive open-question branch of `simplifyPartner()` in `app/app.js` calls
-  out to an LLM (Gemini `generateContent`, `gemini-2.0-flash`, JSON-schema-constrained output of
-  2–3 short candidate answers). Every other classification (schedule, yes/no, topic fallback) and
-  all of the expressive clarification flow stay fully local/deterministic, unchanged.
-- **Key handling**: the app is a static, no-build, no-backend site served from GitHub Pages, so
-  there is nowhere to hold a secret server-side — a `.env`/build-time-embedded key would ship
-  inside the public JS bundle and leak immediately (the repo is public). Instead the researcher
-  enters their own Gemini API key at runtime via the "AI" button in the topbar. It's kept in that
-  tab's `sessionStorage` (not `localStorage`, never written to the repo or any server) so it
-  survives a reload — mobile browsers routinely discard/reload a backgrounded tab, and a bare JS
-  variable didn't survive that — but is cleared when the tab is actually closed. Without a key, the
-  receptive flow behaves exactly as before (neutral "answer freely" message, no forced yes/no, no
-  network call).
-- **Privacy consequence**: when a key is set, the partner's utterance for an open-ended question is
-  sent to Google's Gemini API to generate answer candidates — this is a deliberate, narrow exception
-  to "no conversation data leaves the device," gated behind an explicit researcher action (entering
-  a key), not something a participant can trigger unknowingly.
-- **Failure handling**: any network/API/parse failure falls back to the same local neutral message
-  used when no key is configured — never blocks the flow or fabricates an answer.
+  out to an LLM (Gemini `generateContent`, JSON-schema-constrained output of 2–3 short candidate
+  answers). Every other classification (schedule, yes/no, topic fallback) and all of the expressive
+  clarification flow stay fully local/deterministic, unchanged.
+- **Key handling — proxied, always on**: `app/app.js` is static and served from GitHub Pages, so it
+  has nowhere to hold a secret client-side; embedding the Gemini key directly (or asking a
+  researcher to paste one in each session) either leaks it publicly or requires manual setup every
+  time. Instead `app/app.js` calls a small Cloudflare Worker (`worker/`, see `worker/README.md`)
+  which holds the real Gemini key as a Worker secret and proxies the request. The Worker is
+  **explicitly demo-scoped, disposable infrastructure** — meant to be swapped for a real backend
+  during a future handoff, not built on top of — and `app/app.js` only depends on its small
+  `{ text } -> { choices } | { error }` HTTP contract, nothing Cloudflare- or Gemini-specific, so
+  swapping it out later touches one constant (`AI_PROXY_URL`) and nothing else in the frontend.
+  CORS on the Worker is restricted to this app's origin.
+- **Privacy consequence**: the partner's utterance for an open-ended question is sent to the proxy
+  (and from there to Google's Gemini API) to generate answer candidates — a deliberate, narrow
+  exception to "no conversation data leaves the device," scoped to only this one question type.
+- **Failure handling**: any network/proxy/API/parse failure shows the actual error inline (not a
+  silent no-op) and falls back to letting the user answer via mic/typing — never blocks the flow or
+  fabricates an answer.

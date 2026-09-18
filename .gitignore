@@ -3,3 +3,7 @@ docs/sources/
 
 # OS cruft
 .DS_Store
+
+# Cloudflare Worker local secrets — never push a real API key.
+worker/.dev.vars
+worker/.wrangler/

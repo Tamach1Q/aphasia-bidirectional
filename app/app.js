@@ -26,50 +26,28 @@
   // ---- IDLE ----
   function renderIdle() { setMain('<div class="idle-state"></div>'); setBottomBar(true); }
 
-  // ---- optional AI-assisted answer suggestions for open-ended partner questions ----
-  // Kept in sessionStorage: never written to the repo or any server, and cleared when the tab
-  // is actually closed -- but (unlike a bare JS variable) it survives a reload, which matters on
-  // mobile where the OS routinely discards/reloads a backgrounded tab. Without a key the app
-  // falls back to the neutral local message.
-  function readStoredGeminiKey() { try { return sessionStorage.getItem('geminiApiKey') || null; } catch (_) { return null; } }
-  function writeStoredGeminiKey(key) { try { if (key) sessionStorage.setItem('geminiApiKey', key); else sessionStorage.removeItem('geminiApiKey'); } catch (_) {} }
-  let geminiApiKey = readStoredGeminiKey();
-  const GEMINI_MODEL = 'gemini-3.6-flash';
-  function configureGeminiKey() {
-    const next = window.prompt('Gemini APIキー（このブラウザのタブを閉じるまでのみ使用し、保存されません）', geminiApiKey || '');
-    if (next === null) return;
-    geminiApiKey = next.trim() || null;
-    writeStoredGeminiKey(geminiApiKey);
-    $('aiKeyButton').classList.toggle('active', !!geminiApiKey);
-    setStatus(geminiApiKey ? 'AIの答え候補を有効にしました。' : 'AIの答え候補を無効にしました。');
-  }
+  // ---- AI-assisted answer suggestions for open-ended partner questions ----
+  // Always on: calls a small proxy (worker/) that holds the Gemini key server-side, so the
+  // static frontend never embeds a secret. See worker/README.md — this endpoint is demo-scoped
+  // infrastructure, freely replaceable with a production backend without touching this contract
+  // ({ text } -> { choices } | { error }).
+  const AI_PROXY_URL = 'https://aphasia-ai-proxy.YOUR-SUBDOMAIN.workers.dev';
   async function generateOpenQuestionChoices(text) {
-    if (!geminiApiKey) return { choices:null, error:null };
     const started = performance.now();
-    const prompt = `あなたは失語症の人が会話するのを助けるアシスタントです。\n会話の相手が次のように話しかけました:「${text}」\nこれははい/いいえでは答えられない、開かれた質問です。\n失語症の人がタップするだけで答えられるように、質問の内容から自然に推測できる、具体的で互いに意味が異なる答えの候補を2〜3個、短い日本語の言葉で提案してください。\n出力は候補の配列だけのJSONにしてください。他の文章は含めないでください。`;
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
+      const res = await fetch(AI_PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: { type: 'ARRAY', items: { type: 'STRING' }, minItems: 2, maxItems: 3 } }
-        })
+        body: JSON.stringify({ text }),
       });
-      if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
-        try { const errBody = await res.json(); if (errBody?.error?.message) detail += `: ${errBody.error.message}`; } catch (_) {}
-        throw new Error(detail);
-      }
-      const data = await res.json();
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const choices = JSON.parse(raw);
-      if (!Array.isArray(choices) || !choices.length) throw new Error('候補が空でした');
-      logLatency('llm: gemini open-question choices', started, text);
-      return { choices: choices.slice(0, 3).map(String), error:null };
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+      if (!Array.isArray(data.choices) || !data.choices.length) throw new Error('候補が空でした');
+      logLatency('llm: ai proxy open-question choices', started, text);
+      return { choices: data.choices.slice(0, 3).map(String), error:null };
     } catch (err) {
-      console.warn('gemini choice generation failed', err);
-      logLatency('llm: gemini open-question choices (failed)', started, text);
+      console.warn('AI choice generation failed', err);
+      logLatency('llm: ai proxy open-question choices (failed)', started, text);
       return { choices:null, error: err.message || String(err) };
     }
   }
@@ -89,11 +67,11 @@
   function renderPartnerMeaning(text) {
     const result = simplifyPartner(text);
     const generation = ++meaningGeneration;
-    setMain(`<div class="meaning-view"><p class="eyebrow">相手は何を聞いていますか？</p><p class="meaning" id="partnerMeaning">${escapeHtml(result.meaning)}</p>${result.openQuestion && geminiApiKey ? '<p class="small-note" id="aiLoading">AIが答えの候補を考えています…</p>' : ''}<div class="choice-list" id="partnerChoices"></div><button class="text-button" id="dontUnderstandButton" type="button">わかりません</button></div>`);
+    setMain(`<div class="meaning-view"><p class="eyebrow">相手は何を聞いていますか？</p><p class="meaning" id="partnerMeaning">${escapeHtml(result.meaning)}</p>${result.openQuestion ? '<p class="small-note" id="aiLoading">AIが答えの候補を考えています…</p>' : ''}<div class="choice-list" id="partnerChoices"></div><button class="text-button" id="dontUnderstandButton" type="button">わかりません</button></div>`);
     showChoices($('partnerChoices'), result.choices, (choice) => { if (choice === 'もう一度聞く' || choice === 'わかりません') return showDontUnderstand(); setStatus('返事を選びました。必要なら自分のことばを作れます。'); });
     $('dontUnderstandButton').addEventListener('click', showDontUnderstand);
     setBottomBar(true);
-    if (result.openQuestion && geminiApiKey) {
+    if (result.openQuestion) {
       generateOpenQuestionChoices(text).then(({ choices, error }) => {
         if (generation !== meaningGeneration) return; // a newer utterance or reset has since replaced this screen
         const loading = $('aiLoading'); if (loading) loading.remove();
@@ -287,8 +265,6 @@
   $('speakButton').addEventListener('click', () => state.expressive ? finishExpressive($('fragmentInput') ? $('fragmentInput').value : expressivePartial) : startExpressive());
   $('typeButton').addEventListener('click', () => renderFragmentForm(state.fragment, true));
   $('resetButton').addEventListener('click', reset);
-  $('aiKeyButton').addEventListener('click', configureGeminiKey);
-  $('aiKeyButton').classList.toggle('active', !!geminiApiKey);
 
   renderIdle();
 })();
