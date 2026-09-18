@@ -31,7 +31,7 @@
   // static frontend never embeds a secret. See worker/README.md — this endpoint is demo-scoped
   // infrastructure, freely replaceable with a production backend without touching this contract
   // ({ text } -> { choices } | { error }).
-  const AI_PROXY_URL = 'https://aphasia-ai-proxy.YOUR-SUBDOMAIN.workers.dev';
+  const AI_PROXY_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
   async function generateOpenQuestionChoices(text) {
     const started = performance.now();
     try {
