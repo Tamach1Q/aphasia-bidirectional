@@ -25,10 +25,12 @@ narrow, optional LLM call for exactly that one step:
 - **Key handling**: the app is a static, no-build, no-backend site served from GitHub Pages, so
   there is nowhere to hold a secret server-side — a `.env`/build-time-embedded key would ship
   inside the public JS bundle and leak immediately (the repo is public). Instead the researcher
-  enters their own Gemini API key at runtime via the "AI" button in the topbar; it lives only in a
-  module-level JS variable for that browser tab, is never written to storage, `localStorage`, the
-  repo, or any server, and is gone on reload. Without a key, the receptive flow behaves exactly as
-  before (neutral "answer freely" message, no forced yes/no, no network call).
+  enters their own Gemini API key at runtime via the "AI" button in the topbar. It's kept in that
+  tab's `sessionStorage` (not `localStorage`, never written to the repo or any server) so it
+  survives a reload — mobile browsers routinely discard/reload a backgrounded tab, and a bare JS
+  variable didn't survive that — but is cleared when the tab is actually closed. Without a key, the
+  receptive flow behaves exactly as before (neutral "answer freely" message, no forced yes/no, no
+  network call).
 - **Privacy consequence**: when a key is set, the partner's utterance for an open-ended question is
   sent to Google's Gemini API to generate answer candidates — this is a deliberate, narrow exception
   to "no conversation data leaves the device," gated behind an explicit researcher action (entering
