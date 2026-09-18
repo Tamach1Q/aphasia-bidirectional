@@ -27,14 +27,19 @@
   function renderIdle() { setMain('<div class="idle-state"></div>'); setBottomBar(true); }
 
   // ---- optional AI-assisted answer suggestions for open-ended partner questions ----
-  // Session-only: the key lives in this variable alone, is never written to storage or the
-  // repo, and is gone on reload. Without a key the app falls back to the neutral local message.
-  let geminiApiKey = null;
+  // Kept in sessionStorage: never written to the repo or any server, and cleared when the tab
+  // is actually closed -- but (unlike a bare JS variable) it survives a reload, which matters on
+  // mobile where the OS routinely discards/reloads a backgrounded tab. Without a key the app
+  // falls back to the neutral local message.
+  function readStoredGeminiKey() { try { return sessionStorage.getItem('geminiApiKey') || null; } catch (_) { return null; } }
+  function writeStoredGeminiKey(key) { try { if (key) sessionStorage.setItem('geminiApiKey', key); else sessionStorage.removeItem('geminiApiKey'); } catch (_) {} }
+  let geminiApiKey = readStoredGeminiKey();
   const GEMINI_MODEL = 'gemini-2.0-flash';
   function configureGeminiKey() {
-    const next = window.prompt('Gemini APIキー（このタブを閉じるまでのみ使用し、保存されません）', geminiApiKey || '');
+    const next = window.prompt('Gemini APIキー（このブラウザのタブを閉じるまでのみ使用し、保存されません）', geminiApiKey || '');
     if (next === null) return;
     geminiApiKey = next.trim() || null;
+    writeStoredGeminiKey(geminiApiKey);
     $('aiKeyButton').classList.toggle('active', !!geminiApiKey);
     setStatus(geminiApiKey ? 'AIの答え候補を有効にしました。' : 'AIの答え候補を無効にしました。');
   }
@@ -283,6 +288,7 @@
   $('typeButton').addEventListener('click', () => renderFragmentForm(state.fragment, true));
   $('resetButton').addEventListener('click', reset);
   $('aiKeyButton').addEventListener('click', configureGeminiKey);
+  $('aiKeyButton').classList.toggle('active', !!geminiApiKey);
 
   renderIdle();
 })();
