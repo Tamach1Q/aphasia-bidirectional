@@ -46,38 +46,48 @@ export default {
 失語症の人がタップするだけで答えられるように、質問の内容から自然に推測できる、具体的で互いに意味が異なる答えの候補を2〜3個、短い日本語の言葉で提案してください。
 出力は候補の配列だけのJSONにしてください。他の文章は含めないでください。`;
 
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              responseSchema: { type: 'ARRAY', items: { type: 'STRING' }, minItems: 2, maxItems: 3 },
-            },
-          }),
+    // Google's own free-tier "high demand" 503s are explicitly documented as transient --
+    // retry a couple of times with a short backoff before giving up.
+    const attempts = [0, 500, 1500];
+    let lastError = null;
+    for (const delay of attempts) {
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                responseSchema: { type: 'ARRAY', items: { type: 'STRING' }, minItems: 2, maxItems: 3 },
+              },
+            }),
+          }
+        );
+
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try {
+            const errBody = await res.json();
+            if (errBody?.error?.message) detail += `: ${errBody.error.message}`;
+          } catch (_) {}
+          lastError = detail;
+          if (res.status === 503 || res.status === 429) continue; // transient -- worth retrying
+          return json({ error: detail }, 502, headers);
         }
-      );
 
-      if (!res.ok) {
-        let detail = `HTTP ${res.status}`;
-        try {
-          const errBody = await res.json();
-          if (errBody?.error?.message) detail += `: ${errBody.error.message}`;
-        } catch (_) {}
-        return json({ error: detail }, 502, headers);
+        const data = await res.json();
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const choices = JSON.parse(raw);
+        if (!Array.isArray(choices) || !choices.length) { lastError = '候補が空でした'; continue; }
+        return json({ choices: choices.slice(0, 3).map(String) }, 200, headers);
+      } catch (err) {
+        lastError = err.message || String(err);
       }
-
-      const data = await res.json();
-      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const choices = JSON.parse(raw);
-      if (!Array.isArray(choices) || !choices.length) return json({ error: '候補が空でした' }, 502, headers);
-      return json({ choices: choices.slice(0, 3).map(String) }, 200, headers);
-    } catch (err) {
-      return json({ error: err.message || String(err) }, 500, headers);
     }
+    return json({ error: lastError || '不明なエラー' }, 502, headers);
   },
 };
