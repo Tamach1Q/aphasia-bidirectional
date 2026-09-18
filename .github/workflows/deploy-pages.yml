@@ -25,6 +25,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # GitHub Pages serves static assets with cache-control: max-age=600, so a plain reload on a
+      # phone can silently keep serving yesterday's app.js/styles.css for up to 10 minutes after a
+      # new deploy. Bust the cache every deploy by tagging references with this commit's SHA, so
+      # each deploy is a brand-new URL the browser has never cached.
+      - name: Cache-bust asset references
+        run: |
+          sha="${GITHUB_SHA::8}"
+          sed -i "s/app\.js\"/app.js?v=${sha}\"/" app/index.html
+          sed -i "s/styles\.css\"/styles.css?v=${sha}\"/" app/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: app
