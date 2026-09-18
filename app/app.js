@@ -34,7 +34,7 @@
   function readStoredGeminiKey() { try { return sessionStorage.getItem('geminiApiKey') || null; } catch (_) { return null; } }
   function writeStoredGeminiKey(key) { try { if (key) sessionStorage.setItem('geminiApiKey', key); else sessionStorage.removeItem('geminiApiKey'); } catch (_) {} }
   let geminiApiKey = readStoredGeminiKey();
-  const GEMINI_MODEL = 'gemini-2.0-flash';
+  const GEMINI_MODEL = 'gemini-3.6-flash';
   function configureGeminiKey() {
     const next = window.prompt('Gemini APIキー（このブラウザのタブを閉じるまでのみ使用し、保存されません）', geminiApiKey || '');
     if (next === null) return;
