@@ -21,6 +21,8 @@ button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke
 .status-dot.active { background: #4d9d68; box-shadow: 0 0 0 4px #e2f0e5; }
 .icon-button { border: 1px solid var(--line); background: var(--card); border-radius: 50%; width: 44px; height: 44px; color: var(--accent); display: flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 2px 8px #1f332b0d; }
 .reset-button { color: #84908d; border-color: transparent; background: transparent; }
+.ai-key-button { font-size: 11px; font-weight: var(--weight-semibold); letter-spacing: .02em; color: #84908d; border-color: transparent; background: transparent; }
+.ai-key-button.active { color: var(--accent); }
 h1, h2, p { margin: 0; } h2 { font-size: var(--text-question); line-height: 1.25; font-weight: var(--weight-bold); letter-spacing: -.02em; }
 .eyebrow { color: var(--muted); font-size: var(--text-label); font-weight: var(--weight-semibold); letter-spacing: .08em; }
 .partner-zone { flex: 0 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); margin-top: 8px; padding: 9px 12px; box-shadow: 0 4px 14px #1f332b08; }
