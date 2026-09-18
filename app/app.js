@@ -31,6 +31,8 @@
     const clean = text.trim();
     if (!clean) return { meaning:'聞き取れませんでした。もう一度お願いします。', choices:[] };
     if (/金曜|月曜|いつ|何時|午後|午前/.test(clean)) return { meaning:'いつがいいですか？', choices:['金曜日の午後','月曜日の午前','どちらでもいい'] };
+    // Open-ended (5W1H-style) questions have no yes/no answer — don't force one just because a topic word also matched below.
+    if (/どんな|どういう|なぜ|どうして|どうやって|どのように|どのくらい|どちら|どこ|だれ|誰|何|なに/.test(clean)) return { meaning:'相手が質問しています。ことばで答えを作れます。', choices:[] };
     if (/来る|行く|できますか|大丈夫|いいですか/.test(clean)) return { meaning:'できますか？', choices:['はい、できます','いいえ、できません','わかりません'] };
     if (/病院|医者|診察|学校|仕事|電車|家族|娘|息子|予約|薬|確認|変更|連絡/.test(clean)) return { meaning:'相手の話について、返事を選びますか？', choices:['はい','いいえ','もう一度聞く'] };
     return { meaning:'うまく処理できませんでした。もう一度お願いします。', choices:[] };
