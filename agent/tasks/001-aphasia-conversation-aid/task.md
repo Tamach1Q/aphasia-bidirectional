@@ -99,6 +99,20 @@ no accounts, no offline support, no long-term persistence or multi-device sync.
   not commit or push.** Useful context for *why* the design looks the way it does, not a source of
   additional requirements beyond what's in `spec.md`/`product.md`.
 
+## Active fix request (2026-09-18, pre-user-test)
+
+**Required reading for this coding pass:**
+`agent/tasks/001-aphasia-conversation-aid/fix-request-2026-09-18.md`.
+
+Product (human-in-the-loop review, since automated QA hit an environment error twice) did manual
+black-box QA against PR #1 and found a confirmed implementation bug plus several UI/accessibility
+issues to fix before today's user test. This is a bug-fix/UI-correction pass on the existing
+implementation, not new scope — see that file for the full, itemized list (P0 bugs: dropped
+person/subject in generated messages, broken Mode A back-navigation, fake ASR fallback text on
+recognition failure, `reset()` not stopping expressive recognition; P1: primary controls must not be
+confined to the right edge, un-right-align the fragment-submit CTA, don't let larger text sizes hide
+controls, optional dark mode) and the manual test plan and report-back format to follow.
+
 ## Open items for Coding to flag back to Product (not to decide unilaterally)
 
 All items previously listed here (clarification ordering, latency target, US1/US2 priority, icon
