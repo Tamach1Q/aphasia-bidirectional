@@ -39,7 +39,7 @@
     setStatus(geminiApiKey ? 'AIの答え候補を有効にしました。' : 'AIの答え候補を無効にしました。');
   }
   async function generateOpenQuestionChoices(text) {
-    if (!geminiApiKey) return null;
+    if (!geminiApiKey) return { choices:null, error:null };
     const started = performance.now();
     const prompt = `あなたは失語症の人が会話するのを助けるアシスタントです。\n会話の相手が次のように話しかけました:「${text}」\nこれははい/いいえでは答えられない、開かれた質問です。\n失語症の人がタップするだけで答えられるように、質問の内容から自然に推測できる、具体的で互いに意味が異なる答えの候補を2〜3個、短い日本語の言葉で提案してください。\n出力は候補の配列だけのJSONにしてください。他の文章は含めないでください。`;
     try {
@@ -51,17 +51,21 @@
           generationConfig: { responseMimeType: 'application/json', responseSchema: { type: 'ARRAY', items: { type: 'STRING' }, minItems: 2, maxItems: 3 } }
         })
       });
-      if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const errBody = await res.json(); if (errBody?.error?.message) detail += `: ${errBody.error.message}`; } catch (_) {}
+        throw new Error(detail);
+      }
       const data = await res.json();
       const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
       const choices = JSON.parse(raw);
-      if (!Array.isArray(choices) || !choices.length) throw new Error('empty choices');
+      if (!Array.isArray(choices) || !choices.length) throw new Error('候補が空でした');
       logLatency('llm: gemini open-question choices', started, text);
-      return choices.slice(0, 3).map(String);
+      return { choices: choices.slice(0, 3).map(String), error:null };
     } catch (err) {
       console.warn('gemini choice generation failed', err);
       logLatency('llm: gemini open-question choices (failed)', started, text);
-      return null;
+      return { choices:null, error: err.message || String(err) };
     }
   }
 
@@ -85,10 +89,11 @@
     $('dontUnderstandButton').addEventListener('click', showDontUnderstand);
     setBottomBar(true);
     if (result.openQuestion && geminiApiKey) {
-      generateOpenQuestionChoices(text).then((choices) => {
+      generateOpenQuestionChoices(text).then(({ choices, error }) => {
         if (generation !== meaningGeneration) return; // a newer utterance or reset has since replaced this screen
         const loading = $('aiLoading'); if (loading) loading.remove();
-        if (choices) showChoices($('partnerChoices'), choices, (choice) => setStatus('答えを選びました。必要なら自分のことばを作れます。'));
+        if (choices) return showChoices($('partnerChoices'), choices, (choice) => setStatus('答えを選びました。必要なら自分のことばを作れます。'));
+        if (error) { const note = document.createElement('p'); note.className = 'small-note ai-error'; note.textContent = `AIの候補生成に失敗しました（${error}）。下のマイク・文字入力で答えられます。`; $('partnerChoices').before(note); }
       });
     }
   }
