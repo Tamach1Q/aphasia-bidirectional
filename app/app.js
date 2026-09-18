@@ -26,23 +26,71 @@
   // ---- IDLE ----
   function renderIdle() { setMain('<div class="idle-state"></div>'); setBottomBar(true); }
 
+  // ---- optional AI-assisted answer suggestions for open-ended partner questions ----
+  // Session-only: the key lives in this variable alone, is never written to storage or the
+  // repo, and is gone on reload. Without a key the app falls back to the neutral local message.
+  let geminiApiKey = null;
+  const GEMINI_MODEL = 'gemini-2.0-flash';
+  function configureGeminiKey() {
+    const next = window.prompt('Gemini APIキー（このタブを閉じるまでのみ使用し、保存されません）', geminiApiKey || '');
+    if (next === null) return;
+    geminiApiKey = next.trim() || null;
+    $('aiKeyButton').classList.toggle('active', !!geminiApiKey);
+    setStatus(geminiApiKey ? 'AIの答え候補を有効にしました。' : 'AIの答え候補を無効にしました。');
+  }
+  async function generateOpenQuestionChoices(text) {
+    if (!geminiApiKey) return null;
+    const started = performance.now();
+    const prompt = `あなたは失語症の人が会話するのを助けるアシスタントです。\n会話の相手が次のように話しかけました:「${text}」\nこれははい/いいえでは答えられない、開かれた質問です。\n失語症の人がタップするだけで答えられるように、質問の内容から自然に推測できる、具体的で互いに意味が異なる答えの候補を2〜3個、短い日本語の言葉で提案してください。\n出力は候補の配列だけのJSONにしてください。他の文章は含めないでください。`;
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(geminiApiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: { type: 'ARRAY', items: { type: 'STRING' }, minItems: 2, maxItems: 3 } }
+        })
+      });
+      if (!res.ok) throw new Error(`Gemini API error ${res.status}`);
+      const data = await res.json();
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const choices = JSON.parse(raw);
+      if (!Array.isArray(choices) || !choices.length) throw new Error('empty choices');
+      logLatency('llm: gemini open-question choices', started, text);
+      return choices.slice(0, 3).map(String);
+    } catch (err) {
+      console.warn('gemini choice generation failed', err);
+      logLatency('llm: gemini open-question choices (failed)', started, text);
+      return null;
+    }
+  }
+
   // ---- PARTNER_MEANING_READY ----
   function simplifyPartner(text) {
     const clean = text.trim();
     if (!clean) return { meaning:'聞き取れませんでした。もう一度お願いします。', choices:[] };
     if (/金曜|月曜|いつ|何時|午後|午前/.test(clean)) return { meaning:'いつがいいですか？', choices:['金曜日の午後','月曜日の午前','どちらでもいい'] };
     // Open-ended (5W1H-style) questions have no yes/no answer — don't force one just because a topic word also matched below.
-    if (/どんな|どういう|なぜ|どうして|どうやって|どのように|どのくらい|どちら|どこ|だれ|誰|何|なに/.test(clean)) return { meaning:'相手が質問しています。ことばで答えを作れます。', choices:[] };
+    if (/どんな|どういう|なぜ|どうして|どうやって|どのように|どのくらい|どちら|どこ|だれ|誰|何|なに/.test(clean)) return { meaning:'相手が質問しています。ことばで答えを作れます。', choices:[], openQuestion:true };
     if (/来る|行く|できますか|大丈夫|いいですか/.test(clean)) return { meaning:'できますか？', choices:['はい、できます','いいえ、できません','わかりません'] };
     if (/病院|医者|診察|学校|仕事|電車|家族|娘|息子|予約|薬|確認|変更|連絡/.test(clean)) return { meaning:'相手の話について、返事を選びますか？', choices:['はい','いいえ','もう一度聞く'] };
     return { meaning:'うまく処理できませんでした。もう一度お願いします。', choices:[] };
   }
+  let meaningGeneration = 0;
   function renderPartnerMeaning(text) {
     const result = simplifyPartner(text);
-    setMain(`<div class="meaning-view"><p class="eyebrow">相手は何を聞いていますか？</p><p class="meaning" id="partnerMeaning">${escapeHtml(result.meaning)}</p><div class="choice-list" id="partnerChoices"></div><button class="text-button" id="dontUnderstandButton" type="button">わかりません</button></div>`);
+    const generation = ++meaningGeneration;
+    setMain(`<div class="meaning-view"><p class="eyebrow">相手は何を聞いていますか？</p><p class="meaning" id="partnerMeaning">${escapeHtml(result.meaning)}</p>${result.openQuestion && geminiApiKey ? '<p class="small-note" id="aiLoading">AIが答えの候補を考えています…</p>' : ''}<div class="choice-list" id="partnerChoices"></div><button class="text-button" id="dontUnderstandButton" type="button">わかりません</button></div>`);
     showChoices($('partnerChoices'), result.choices, (choice) => { if (choice === 'もう一度聞く' || choice === 'わかりません') return showDontUnderstand(); setStatus('返事を選びました。必要なら自分のことばを作れます。'); });
     $('dontUnderstandButton').addEventListener('click', showDontUnderstand);
     setBottomBar(true);
+    if (result.openQuestion && geminiApiKey) {
+      generateOpenQuestionChoices(text).then((choices) => {
+        if (generation !== meaningGeneration) return; // a newer utterance or reset has since replaced this screen
+        const loading = $('aiLoading'); if (loading) loading.remove();
+        if (choices) showChoices($('partnerChoices'), choices, (choice) => setStatus('答えを選びました。必要なら自分のことばを作れます。'));
+      });
+    }
   }
   function showPartnerResult(text) { const started = performance.now(); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
   function showDontUnderstand() {
@@ -210,6 +258,7 @@
   function speakConfirmed() { if (!state.confirmed) return; if (!window.speechSynthesis) return setStatus('この端末では読み上げを使えません。'); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(state.message); utterance.lang = 'ja-JP'; window.speechSynthesis.speak(utterance); setStatus('確認したことばを読み上げています。'); }
 
   function reset() {
+    meaningGeneration += 1; // invalidate any in-flight AI answer-suggestion call
     state.listening = false;
     stopPartnerRecognition();
     stopExpressiveRecognition();
@@ -228,6 +277,7 @@
   $('speakButton').addEventListener('click', () => state.expressive ? finishExpressive($('fragmentInput') ? $('fragmentInput').value : expressivePartial) : startExpressive());
   $('typeButton').addEventListener('click', () => renderFragmentForm(state.fragment, true));
   $('resetButton').addEventListener('click', reset);
+  $('aiKeyButton').addEventListener('click', configureGeminiKey);
 
   renderIdle();
 })();
