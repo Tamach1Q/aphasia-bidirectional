@@ -1,6 +1,7 @@
 import * as sessionStore from './core/session.js';
 import * as personalContext from './core/personal-context.js';
 import * as inject from './capture/inject.js';
+import * as intake from './capture/intake.js';
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -16,10 +17,16 @@ import * as inject from './capture/inject.js';
     personalContext.loadFixture(config002.configId)
       .catch((err) => console.warn('[002] personal context fixture not loaded', err));
   }
+  // ALL captured text — ASR and injected alike — enters through capture/intake.js.
+  // app.js must never call sessionStore.appendTurn directly; a test enforces that only
+  // the capture layer does (tests/unit/single-intake.test.js).
   function recordTurn(speaker, text, source = 'asr') {
     if (!sessionStore.isActive()) return;
-    sessionStore.appendTurn({ speaker, text, source });
+    intake.submitTurn({ speaker, text, source });
   }
+  // Interim recognition output goes through the same door and reaches the transcript
+  // strip only — never a Turn, never the settled main area (FR-002, FR-010).
+  intake.onInterim((text) => setPartnerTranscript(text));
   // T034: injection is reachable only behind ?inject=1, never in a participant session.
   // Exposed on window so a researcher (or the browser test page) can drive it from the
   // console without a microphone.
@@ -138,7 +145,7 @@ import * as inject from './capture/inject.js';
     const generation = ++partnerGeneration;
     partnerRecognition = new Recognition(); partnerRecognition.lang = 'ja-JP'; partnerRecognition.continuous = true; partnerRecognition.interimResults = true;
     let asrStarted = performance.now();
-    partnerRecognition.onresult = (event) => { if (generation !== partnerGeneration) return; let finalText = ''; let interim = ''; for (let i=event.resultIndex; i<event.results.length; i += 1) { const line = event.results[i][0].transcript; if (event.results[i].isFinal) finalText += line; else interim += line; } if (interim) setPartnerTranscript(interim); if (finalText) { logLatency('asr: partner transcription', asrStarted, finalText); showPartnerResult(finalText); asrStarted = performance.now(); } };
+    partnerRecognition.onresult = (event) => { if (generation !== partnerGeneration) return; let finalText = ''; let interim = ''; for (let i=event.resultIndex; i<event.results.length; i += 1) { const line = event.results[i][0].transcript; if (event.results[i].isFinal) finalText += line; else interim += line; } if (interim) intake.submitInterim(interim, 'partner'); if (finalText) { logLatency('asr: partner transcription', asrStarted, finalText); showPartnerResult(finalText); asrStarted = performance.now(); } };
     partnerRecognition.onerror = (event) => { if (generation !== partnerGeneration) return; console.warn('partner recognition error', event.error); setStatus(friendlyRecognitionError(event.error)); };
     partnerRecognition.onend = () => { if (generation !== partnerGeneration) return; if (state.partnerSessionActive && state.partnerMicActive) { try { partnerRecognition.start(); } catch (_) {} } };
     try { partnerRecognition.start(); } catch (_) { setStatus('音声認識を開始できませんでした。'); }
