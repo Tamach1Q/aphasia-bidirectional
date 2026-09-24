@@ -1,6 +1,24 @@
+import * as sessionStore from './core/session.js';
+import * as personalContext from './core/personal-context.js';
+
 (() => {
   const $ = (id) => document.getElementById(id);
   const modeA = new URLSearchParams(location.search).get('mode') === 'a';
+
+  // --- 002 Stage 1: the new context store runs ALONGSIDE the old `state` object. ---
+  // The superseded expressive flow below still reads `state.*` in ~100 places and is not
+  // removed until T086/T087, so deleting it here would break the running app and violate
+  // plan.md's "Stages 1-4 add modules without removing behaviour". Turns are mirrored into
+  // the new store so Stage 2 onward has real data to work with; nothing reads back yet.
+  const config002 = sessionStore.parseConfig(location.search);
+  if (config002.configId) {
+    personalContext.loadFixture(config002.configId)
+      .catch((err) => console.warn('[002] personal context fixture not loaded', err));
+  }
+  function recordTurn(speaker, text, source = 'asr') {
+    if (!sessionStore.isActive()) return;
+    sessionStore.appendTurn({ speaker, text, source });
+  }
   const state = { partnerSessionActive:false, partnerMicActive:false, listening:false, expressive:false, round:0, ambiguityIndex:0, noneCounts:{}, known:[], answers:{}, clarificationHistory:[], fragment:'', confirmed:false, message:'' };
   const ambiguities = [
     { key:'time', test:/今日|きょう|明日|あした|昨日|きのう|今週|来週|朝|午後|夜|金曜|月曜/, question:'いつのことですか？', choices:['今日のこと','明日のこと','別の日のこと'], alternatives:['今週のこと','来週のこと','日にちは関係ない'] },
@@ -80,7 +98,7 @@
       });
     }
   }
-  function showPartnerResult(text) { const started = performance.now(); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
+  function showPartnerResult(text) { const started = performance.now(); recordTurn('partner', text); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
   function showDontUnderstand() {
     setMain(`<div class="dont-understand-view"><p class="eyebrow">わかりません</p><h2>もう一度、聞いてみましょう。</h2><div class="flow-actions"><button class="choice long-choice" id="reListenButton" type="button">${icon('mic')} 相手にもう一度話してもらう</button><button class="choice" id="goExpressiveButton" type="button">${icon('mic')} 自分から伝える</button></div></div>`);
     $('reListenButton').addEventListener('click', beginListening);
@@ -103,6 +121,7 @@
   }
   function beginListening() {
     if (state.partnerSessionActive && state.partnerMicActive && partnerRecognition) return;
+    if (!sessionStore.isActive()) sessionStore.startSession(config002);
     setSession(true, true); setStatus('相手の話を聞いています', true); setPartnerTranscript('聞いています…');
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Recognition) { setStatus('音声認識がないため、デモの相手のことばを表示します。'); showPartnerResult('金曜日の午後か、月曜日の午前はどうですか？'); return; }
@@ -115,7 +134,7 @@
     partnerRecognition.onend = () => { if (generation !== partnerGeneration) return; if (state.partnerSessionActive && state.partnerMicActive) { try { partnerRecognition.start(); } catch (_) {} } };
     try { partnerRecognition.start(); } catch (_) { setStatus('音声認識を開始できませんでした。'); }
   }
-  function stopListening() { state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); setPartnerTranscript(''); setStatus('聞くのを止めました。'); }
+  function stopListening() { sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); setPartnerTranscript(''); setStatus('聞くのを止めました。'); }
 
   // ---- CAPTURING_USER ----
   function renderCapturing() { setMain('<div class="capturing-view"><span class="rec-dot" aria-hidden="true"></span><p>あなたのことばを聞いています…</p><p class="small-note" id="capturingPartial"></p><p class="small-note">話し終わったら、下のボタンを押してください。</p></div>'); setBottomBar(true); }
@@ -155,6 +174,7 @@
     stopExpressiveRecognition();
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
     const fragment = (text || expressivePartial || '').trim();
+    recordTurn('person', fragment, 'asr');
     renderFragmentForm(fragment, false);
     setStatus('ことばを確認して、進んでください。');
   }
