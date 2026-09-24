@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>002 browser tests</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; margin: 20px; font-size: 14px; }
+    h1 { font-size: 18px; }
+    #results { margin-top: 16px; }
+    .case { padding: 6px 10px; border-left: 3px solid #ccc; margin-bottom: 4px; }
+    .pass { border-color: #2e7d32; background: #f1f8f2; }
+    .fail { border-color: #c62828; background: #fdf1f0; }
+    .detail { color: #666; font-size: 12px; white-space: pre-wrap; }
+    #summary { margin-top: 12px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h1>002 browser tests</h1>
+  <p class="detail">
+    Serve the <strong>repository root</strong> and open <code>/tests/browser/</code>.
+    These cover what <code>node --test</code> cannot: pipelines, views, confirmation.
+    They are driven by <code>app/capture/inject.js</code> (FR-043) and need no microphone.
+  </p>
+
+  <div id="results"></div>
+  <div id="summary">no suites registered yet</div>
+
+  <script type="module">
+    // Minimal in-page runner. Suites register themselves by importing ./runner.js
+    // and calling test(). Kept dependency-free on purpose.
+    import { runAll } from './runner.js';
+    runAll(document.getElementById('results'), document.getElementById('summary'));
+  </script>
+</body>
+</html>

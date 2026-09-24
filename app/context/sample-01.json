@@ -1,0 +1,20 @@
+{
+  "_note": "SYNTHETIC SAMPLE DATA. Invented. Not a real person. See README.md in this directory.",
+  "people": [
+    { "name": "みどり", "relation": "娘" },
+    { "name": "たかし", "relation": "息子" },
+    { "name": "佐藤さん", "relation": "訪問リハビリの担当" }
+  ],
+  "places": [
+    { "name": "さくら台病院", "note": "月に一度の外来" },
+    { "name": "みどり公園", "note": "散歩で行く" },
+    { "name": "駅前のスーパー", "note": "買い物" }
+  ],
+  "schedule": [
+    { "what": "さくら台病院の外来", "when": "毎月第2木曜の午前" },
+    { "what": "訪問リハビリ", "when": "毎週火曜の午後" },
+    { "what": "娘が来る", "when": "だいたい日曜" }
+  ],
+  "interests": ["電車", "旅行の計画", "高校野球"],
+  "topics": ["病院の予約", "家族の予定", "買い物", "外出の付き添い"]
+}

@@ -53,7 +53,9 @@ Under the deployed server the same paths drop the `/app` prefix (`/`, `/?ai=off`
 ## Automated checks
 
 ```bash
-node --test tests/unit/          # pure modules: safety, evidence, gate, chunker, session
+node --test tests/unit/*.test.js   # pure modules: safety, evidence, gate, chunker, session
+# NOTE: pass the glob, not the directory. `node --test tests/unit/` fails here, and the
+# bare `node --test` form would also pick up tests/browser/*.test.js, which need a document.
 # then, with the repo-root dev server running:
 #   http://localhost:8000/tests/browser/   — pipeline, view, and confirmation checks
 ```
