@@ -226,6 +226,12 @@ is assertable in tests.
 | `session` | `fragment`, `shortTerm`, `confirmed` |
 | `personal` | `fragment`, `shortTerm`, `confirmed`, `personalContext` |
 
+Each of those carries its id — `fragment` is `{id, text}`, `shortTerm` entries are
+`{id, speaker, text}`, `confirmed` entries are `{id, text}`. A model cannot return a
+verifiable pointer to something it was never given an id for, and under `ctx: 'none'` the
+fragment is the only citable thing there is (contracts/worker-api.md §"Why the fragment is an
+object").
+
 ---
 
 ## 7. EvidenceRef (FR-016, FR-017)

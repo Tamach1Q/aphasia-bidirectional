@@ -11,3 +11,7 @@ agent/runtime/
 # Cloudflare Worker local secrets — never push a real API key.
 worker/.dev.vars
 worker/.wrangler/
+
+# Stage 0 model-evaluation run output — raw responses, regenerated per run.
+# Never committed: they are large, and they are evidence for a decision that lives in research.md.
+tools/runs/

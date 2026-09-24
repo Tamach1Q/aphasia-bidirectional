@@ -86,11 +86,14 @@ automatically (FR-019).
 
 ### Request
 
+**Everything citable carries its id.** The model cannot return an evidence pointer to `t11` unless
+it was given `t11`.
+
 ```jsonc
 { "op": "hypotheses",
-  "fragment": "…",
-  "shortTerm": [ { "speaker": "partner", "text": "…" } ],
-  "confirmed": [ "…" ],
+  "fragment":  { "id": "t12", "text": "…10…" },
+  "shortTerm": [ { "id": "t11", "speaker": "partner", "text": "明日の病院、何時だった？" } ],
+  "confirmed": [ { "id": "c3", "text": "明日病院に行く" } ],
   "personalContext": { … } }
 ```
 
@@ -102,6 +105,35 @@ Which fields are present is determined by `config.ctx` **at request construction
 | `none` | `fragment` |
 | `session` | `fragment`, `shortTerm`, `confirmed` |
 | `personal` | all four |
+
+#### Why the fragment is an object, not a string
+
+The fragment is itself a `Turn` in the session and carries a turn id. Sending it as
+`{ id, text }` means evidence can point **at the fragment itself** with the ordinary
+`{ "source": "turn", "id": "t12", … }` form.
+
+Without this, `ctx=none` is unsatisfiable: only the fragment is sent, but there would be no way to
+cite it, so every hypothesis would either carry no evidence or carry an invented pointer. That is a
+defect in the contract, not a failure of the model — and scoring a model against it would measure
+the wrong thing.
+
+There is no separate `"source": "fragment"`. The fragment's id is a turn id, so verification against
+`session.turns` works uniformly for all three context conditions.
+
+#### Id assignment
+
+Ids come from `session` (`t1`, `t2`, … `c1`, `c2`, …) and are **stable within a session**.
+
+A caller that has no session — the Stage 0 evaluation harness reading a fixture — MUST assign ids
+deterministically before building the request:
+
+```text
+fixture turns[0] → t1
+fixture turns[1] → t2
+…
+```
+
+so that a rerun produces byte-identical requests and a scored result can be reproduced.
 
 ### Response
 

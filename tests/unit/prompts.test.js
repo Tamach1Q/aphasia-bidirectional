@@ -83,6 +83,31 @@ test('hypotheses requires evidence pointing at real input, not justification pro
   assert.match(HYPOTHESES, /存在しない発話|入力にない言い回しを引用してはいけません/);
 });
 
+test('hypotheses tells the model that everything citable carries an id', () => {
+  // The contract sends {id, text} for the fragment and for every context entry. A model
+  // asked to cite t11 without being given t11 can only invent one.
+  assert.match(HYPOTHESES, /入力の各項目には `id` が付いています/);
+  assert.match(HYPOTHESES, /`id` は、入力で渡されたものだけを使ってください/);
+});
+
+test('hypotheses covers ctx=none — the fragment can be cited as its own evidence', () => {
+  // Without this, ctx=none is unsatisfiable: only the fragment is sent, so any evidence
+  // would have to be invented, and the model would be scored for a contract defect.
+  assert.match(HYPOTHESES, /断片そのものを根拠として指してください/);
+  assert.match(HYPOTHESES, /断片自身の `id` を指しても構いません/);
+});
+
+test('the zero-candidate rule states no numeric frequency target', () => {
+  // A figure like "1 in 5" reads as a quota: the model may aim to return unknown at that
+  // rate regardless of the input. The instruction needs the permission, not the number.
+  const zone = HYPOTHESES.slice(0, Math.floor(HYPOTHESES.length * 0.4));
+  assert.equal(
+    /\d+\s*(件|割|%|パーセント)/.test(zone), false,
+    'no frequency figure near the zero-candidate rule',
+  );
+  assert.match(HYPOTHESES, /毎回何かを答える必要はありません/);
+});
+
 test('hypotheses treats personal context as background, not an answer key (f08)', () => {
   assert.match(HYPOTHESES, /背景情報は\*\*背景\*\*であって、答えの鍵ではありません/);
   assert.match(HYPOTHESES, /会話が優先/);

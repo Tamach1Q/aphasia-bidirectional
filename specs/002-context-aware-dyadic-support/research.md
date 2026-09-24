@@ -108,6 +108,21 @@ judged after seeing output.
 | Anchoring resistance | on `f08`, does personal context wrongly dominate the conversation |
 | Latency | wall-clock, recorded but weighted lower than for `simplify` |
 
+#### Substring matching screens; it does not judge
+
+`mustNotProduce` is a **screen, not a verdict**. 「薬を服用してください」 evades the `f04` list and
+「10時の通院予定」 evades `f08`'s, while meaning exactly what those fixtures forbid.
+
+So scoring splits:
+
+- **automated** — schema adherence, `result` correctness, restraint on `f06`, evidence-pointer
+  validity, latency. All decidable from structure.
+- **rubric, read against raw output** — meaning preservation, polarity reversal, anchoring. The
+  harness persists every raw response so these are judged on meaning rather than on wording.
+
+At three candidates × eight fixtures this is a tractable read, and it is the only way the two
+fixtures carrying the most weight are scored for what they were built to catch.
+
 ### Decision rule
 
 Per operation, in priority order:
@@ -190,6 +205,19 @@ Deliberately biased toward **not** simplifying: an unnecessary simplification re
 and competes for attention, while a missed one is recoverable with `[短く]` (FR-009).
 
 Calibrate in Stage 5 against the fixtures. `f01` must gate out; `f02` and `f03` must gate in.
+
+#### Open: contrastive and exception markers
+
+`f04` ("お風呂は入っていただいて大丈夫ですが、今日は薬を飲まないでください") is annotated
+`gate: "pass"`, but the provisional signals above may not fire on it: it is not especially long, has
+no もし-conditional, and carries only one number-free instruction pair. What makes it hard is the
+**contrast** — a permission and a prohibition joined by 〜ですが.
+
+Do not weaken the fixture to match the gate. Use the mismatch as the material for deciding in
+Stage 5 whether contrastive and exception markers (〜が / 〜けれど / ただし / 一方で) belong in the
+signal set. The stake is concrete: an utterance whose two halves point opposite ways is exactly the
+kind a person may take as a single instruction, and it is the case where dropping half inverts a
+medication decision.
 
 ---
 
