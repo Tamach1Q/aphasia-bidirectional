@@ -1,6 +1,11 @@
 # Implementation Plan: Context-Aware Dyadic Support (Phase 1)
 
-**Branch**: `002-context-aware-dyadic-support` | **Date**: 2026-09-24 | **Spec**: [spec.md](./spec.md)
+**Branch**: `main` | **Feature**: `002-context-aware-dyadic-support` | **Date**: 2026-09-24
+**Spec**: [spec.md](./spec.md)
+
+> There is no `002-context-aware-dyadic-support` git branch. This feature is being committed to
+> `main` directly, in reviewed increments. "002-context-aware-dyadic-support" is the feature
+> identifier and directory name only.
 
 **Input**: `specs/002-context-aware-dyadic-support/spec.md`, `docs/product.md`, `docs/architecture.md`
 

@@ -15,31 +15,47 @@ implementation guide — implementation detail belongs in `tasks.md`.
 ## Run
 
 ```bash
-# from repo root
-python3 -m http.server 8000 --directory app
-# open http://localhost:8000
+# from repo root — development only
+python3 -m http.server 8000
+# app:   http://localhost:8000/app/
+# tests: http://localhost:8000/tests/browser/
 ```
 
-No build step, no install, no lockfile. If either appears, the delivery constraint has been broken.
+Development serves the **repository root** so that `app/` and `tests/` are both reachable.
+**Deployment serves `app/` alone** — `tests/` is never part of the published site. Do not merge the
+test page into `app/` to make one server suffice; keeping test surfaces out of the deployed artifact
+matters more than the convenience.
 
-### Useful URLs
+To check the deployed shape locally:
+
+```bash
+python3 -m http.server 8000 --directory app   # app only, as published; /tests/ is absent
+```
+
+No build step, no install, no lockfile. If any appears, the delivery constraint has been broken.
+
+### Useful URLs (development server, repo root)
 
 ```text
-/                                   normal session, C2 default
-/?ai=off                            A0 baseline — nothing at all
-/?receptive=off                     B0 — transcript, no simplification
-/?ctx=none                          C0 — hypotheses from the fragment alone
-/?ctx=session                       C1 — plus turns and confirmed
-/?config=sample-01                  load a SYNTHETIC personal-context fixture
-/?inject=1                          enable the injected transcript path
+/app/                               normal session, C2 default
+/app/?ai=off                        A0 baseline — nothing at all
+/app/?receptive=off                 B0 — transcript, no simplification
+/app/?ctx=none                      C0 — hypotheses from the fragment alone
+/app/?ctx=session                   C1 — plus turns and confirmed
+/app/?config=sample-01              load a SYNTHETIC personal-context fixture
+/app/?inject=1                      enable the injected transcript path
 /tests/browser/                     the test page
 ```
+
+Under the deployed server the same paths drop the `/app` prefix (`/`, `/?ai=off`, …), and
+`/tests/browser/` does not exist.
 
 ## Automated checks
 
 ```bash
 node --test tests/unit/          # pure modules: safety, evidence, gate, chunker, session
-# then open /tests/browser/ for pipeline, view, and confirmation checks
+# then, with the repo-root dev server running:
+#   http://localhost:8000/tests/browser/   — pipeline, view, and confirmation checks
 ```
 
 Everything below "must hold" is assertable without a microphone, through
