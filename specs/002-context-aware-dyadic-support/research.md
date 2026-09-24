@@ -62,6 +62,47 @@ Determined at execution time, not guessed here:
 
 Cap the evaluation at **three candidates per operation**. This is a selection step, not a study.
 
+### Candidate set as enumerated — 2026-09-24 (T017)
+
+`tools/list-models.mjs` against this project's key: 61 models visible, 44 supporting
+`generateContent`, **9 stable Flash-tier** after filtering.
+
+```text
+gemini-3.8-flash           gemini-3.5-flash        gemini-2.5-flash
+gemini-3.7-flash           gemini-3.5-flash-lite   gemini-2.5-flash-lite
+gemini-3.6-flash  (baseline)
+gemini-3.1-flash-lite      gemini-omni-1.1-flash
+```
+
+Excluded, with reasons the script prints rather than hides:
+
+| Excluded | Why |
+|---|---|
+| 8 ids: `*-preview`, `gemini-flash-latest`, `gemini-flash-lite-latest` | preview, or a **moving alias**. A prototype used in participant sessions must not sit on an id whose meaning can change under it. This repo was already broken once by a retirement (`8571c30`) |
+| 5 ids: `*-tts`, `*-image` | wrong modality. Both operations are text-in / JSON-out |
+
+#### Selection, per operation
+
+Three each, chosen as **baseline + newest stable + one contrasting tier**. The contrast differs
+because the two operations fail differently.
+
+| | `simplify` | `hypotheses` |
+|---|---|---|
+| | `gemini-3.6-flash` *(baseline)* | `gemini-3.6-flash` *(baseline)* |
+| | `gemini-3.8-flash` *(newest stable)* | `gemini-3.8-flash` *(newest stable)* |
+| | `gemini-3.5-flash-lite` *(fastest tier)* | `gemini-3.7-flash` *(second newest)* |
+
+`simplify` sits on the conversational critical path and its failure mode is dropping meaning, so the
+third slot tests whether a **lite** tier is fast enough to be worth its risk.
+
+`hypotheses` is held off the critical path and its failure modes are fabricating a reading and
+fabricating evidence, so latency buys less and the third slot goes to another full-size model
+instead. A lite tier is the least likely to hold f06 restraint and evidence discipline, and
+spending a slot confirming that would answer a question nobody asked.
+
+"Newest" is a heuristic for **which to measure**, not a prediction of which wins. The decision rule
+below is what decides, and retaining the baseline is a valid outcome.
+
 ### Fixtures
 
 A small fixed set of synthetic Japanese conversation fixtures, authored against the **injected
