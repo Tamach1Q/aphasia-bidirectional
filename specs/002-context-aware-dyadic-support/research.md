@@ -15,8 +15,8 @@ open questions that block implementation rather than the user test.
 | OQ-3 | Consent text for expanded off-device scope | **open** — blocks the user test, not the build |
 | OQ-4 | Partner view presentation and handover | **open** — Stage 7 |
 | OQ-5 | Uncertainty display | §6 — **provisional decision: do not display** |
-| OQ-6 | Model and prompt per op | §2 — **method decided, value produced by Stage 0** |
-| OQ-7 | Latency ceiling | §7 — **measured in Stage 0, set before the test** |
+| OQ-6 | Model and prompt per op | §2b — **RESOLVED**: `simplify` → `gemini-3.5-flash-lite` (provisional), `hypotheses` → baseline retained |
+| OQ-7 | Latency ceiling | §7 — model-call latency measured; **ceiling still open**, needs end-to-end on the test device |
 | OQ-8 | Personal context schema depth | §8 — minimal schema decided, revisit after a rehearsal |
 | OQ-9 | Icon and image assets | §3 — **resolved** |
 | OQ-10 | Safety calibration | §9 — direction decided, rate measured in Stage 4 |
@@ -181,6 +181,105 @@ Per operation, in priority order:
 A results table and a one-line decision per operation appended to this file, plus a `wrangler`
 configuration that allows the two operations to name **different** models.
 
+---
+
+## 2a. Results — 2026-09-24 (T021, T022)
+
+`tools/model-eval.mjs`, free-tier key. Raw responses under `tools/runs/` (gitignored).
+
+### `simplify` — f02, f03, f04
+
+| Model | schema | p50 | max | gave up | rubric |
+|---|---|---|---|---|---|
+| `gemini-3.6-flash` *(baseline)* | 6/6 | **5244 ms** | 5848 ms | 3 | clean |
+| `gemini-3.8-flash` | 1/1 | 4360 ms | 5103 ms | **13** | n/a |
+| `gemini-3.5-flash-lite` | 9/9 | **1150 ms** | 1379 ms | **0** | clean |
+
+Rubric pass over raw output:
+
+- **f04 polarity — no reversal in any of 6 observed runs.** Every output kept 「薬を飲まないで
+  ください」 as a prohibition, and both models split it out as a separate line.
+- **f02 condition — preserved in all 6 runs.** See the screen note below.
+- **f03** — both appointment slots and the floor survived every run; no collapse to one slot.
+
+### `hypotheses` — f05, f06, f07, f08
+
+| Model | schema | restraint | evidence valid | p50 | gave up |
+|---|---|---|---|---|---|
+| `gemini-3.6-flash` *(baseline)* | 4/4 | **4/4** | **6/6** | ~4000 ms | 8 |
+| `gemini-3.8-flash` | 0 | — | — | — | **all** |
+| `gemini-3.7-flash` | 6/6 | **6/6** | **14/14** | ~11000 ms | 4 |
+
+Rubric pass over raw output:
+
+- **f06 restraint — both models returned `result: "unknown"` with zero candidates.** Neither
+  invented a reading for 「…あれ…」. This is the behaviour the fixture exists to demand.
+- **f08 anchoring — neither model took the bait.** The baseline answered 「10時ごろ」 citing the
+  bedtime question; 3.7-flash gave two bedtime readings (10時, and 11時/12時 — a sensible reading of
+  a possibly-truncated 「じゅう」). No hospital reading appeared despite a prominent 10時 hospital
+  appointment in the personal context.
+- **f07 context use** — 3.7-flash resolved 「さくら」 to さくら台病院 and cited **both** the turn and
+  the `personalContext` path. The baseline was never measured here (quota) — see gaps.
+- **Evidence validity was 100% (20/20).** Every pointer resolved and every excerpt was really
+  present in the cited source. This is the id-bearing request shape working; under the previous
+  contract none of these could have verified.
+
+### Quota is a selection criterion, not noise
+
+`gemini-3.8-flash` returned `429 "You exceeded your current quota"` on essentially every call and
+produced **one** usable response across both operations. That is not a transient capacity blip the
+harness can retry through — it is exhausted quota on this key.
+
+A model this project cannot call reliably is not a candidate for a prototype used in participant
+sessions, whatever it would have scored. Excluded on availability.
+
+### The screen produced a false negative — as predicted
+
+On `f02`, the automated `condition` probe marked the condition **absent** from
+「ふらつくときは飲むのをやめる」 because the probe lacked 〜ときは. The condition was in fact
+preserved.
+
+This is exactly why `mustNotProduce` and the preserve probes are documented as a **screen, not a
+verdict**. A red cell means "read this one", and a green cell is equally not a pass. The probe has
+been widened, but the rubric pass remains the thing that decides.
+
+---
+
+## 2b. Decision (T023)
+
+### `simplify` → **`gemini-3.5-flash-lite`** *(switch from baseline)*
+
+**4.5× faster at the median** (1150 ms vs 5244 ms), zero quota failures across 9 calls, and the
+rubric pass found no meaning loss on any of the three receptive fixtures — including the polarity
+one.
+
+`simplify` sits on the conversational critical path, where Constitution III makes latency a
+first-class constraint rather than a nicety. The baseline was never evaluated for this task; it was
+inherited from a feature that no longer exists.
+
+> **Provisional.** 9 calls on 3 fixtures is thin evidence. Re-confirm in Stage 5 with the gate
+> calibration runs, which will exercise it far more. If meaning loss appears there, revert to
+> `gemini-3.6-flash` and accept the latency.
+
+### `hypotheses` → **`gemini-3.6-flash` retained** *(no switch)*
+
+Decision rule step 5: **no candidate clearly beat the baseline, so the baseline is retained and the
+reason recorded.**
+
+`gemini-3.7-flash` is not better on any axis that decides this operation — both models pass f06
+restraint, both resist f08 anchoring, both produce 100% valid evidence — and it is roughly **2.7×
+slower**. `gemini-3.8-flash` is unmeasurable on this key.
+
+Switching on "it is newer" would be precisely the unjustified choice this step exists to prevent.
+
+### Gaps in this evidence, stated rather than smoothed over
+
+- **The baseline was never measured on `f07`** (personal-context use). Both attempts hit quota. So
+  the retention rests on f05, f06 and f08. Re-check when Stage 6 wires the real op.
+- `gemini-3.8-flash` is untested rather than rejected on quality.
+- Run counts are small — 9 calls for the winning `simplify` model, 4 for the retained
+  `hypotheses` one. Enough to choose between candidates, not enough to characterise either.
+
 ### Alternatives considered
 
 - *Pin `gemini-3.6-flash` for both now.* Rejected: it is an inherited default that was never
@@ -285,6 +384,33 @@ the network entirely, so the latency budget applies only to utterances that genu
 Over-ceiling behaviour options to decide with the number: show the raw transcript and abandon the
 simplification for that turn, or show a settled partial. The first is preferred a priori because it
 never leaves incomplete meaning on screen.
+
+### Measured — 2026-09-24 (T025)
+
+Model call only. Excludes speech recognition, the local gate, and rendering, all of which sit on top
+of these figures in a real turn.
+
+| Operation | Model | p50 | max |
+|---|---|---|---|
+| `simplify` | `gemini-3.5-flash-lite` *(chosen)* | **1150 ms** | 1379 ms |
+| `simplify` | `gemini-3.6-flash` *(baseline)* | 5244 ms | 5848 ms |
+| `hypotheses` | `gemini-3.6-flash` *(retained)* | ~4000 ms | 5147 ms |
+| `hypotheses` | `gemini-3.7-flash` | ~11000 ms | 16153 ms |
+
+What this settles and what it does not:
+
+- **A sub-2-second `simplify` is achievable**, but only with the lite tier. The baseline could not
+  have met any ceiling worth setting for the critical path — around 5 s, the partner has already
+  moved on.
+- `hypotheses` at ~4 s is tolerable **because it is held, not shown** (§20.2). Nobody is waiting on
+  it; it is ready before anyone asks. Had it been on the critical path, 4 s would be a problem.
+- 3.7-flash at 11 s p50 would be unusable even off the critical path — a hint invoked right after a
+  fragment would arrive after the moment passed.
+
+**The ceiling is still not set.** These are single-call figures on an unloaded free-tier key, taken
+from a laptop rather than a phone on mobile data. The number that matters is end-to-end on the test
+device, which Stage 5 measures. OQ-7 stays open, but it is now bounded by evidence rather than by
+guesswork.
 
 ---
 

@@ -11,6 +11,12 @@ const ALLOWED_ORIGINS = new Set([
   'https://tamach1q.github.io',
 ]);
 
+// Legacy path only. The deployed app still calls the { text } -> { choices } contract,
+// so this stays until T063/T078 replace it with op=simplify / op=hypotheses.
+//
+// The two new operations name DIFFERENT models (wrangler.toml [vars], chosen in
+// research.md §2b) and must not be folded back onto a single constant: simplify was
+// chosen for latency on the critical path, hypotheses for restraint and evidence fidelity.
 const GEMINI_MODEL = 'gemini-3.6-flash';
 
 function corsHeaders(request) {

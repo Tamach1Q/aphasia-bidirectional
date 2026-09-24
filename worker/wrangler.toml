@@ -1,3 +1,22 @@
 name = "aphasia-ai-proxy"
 main = "index.js"
 compatibility_date = "2026-09-18"
+
+# Per-operation models (002 Stage 0, T024).
+#
+# The two operations are evaluated separately and resolve differently — see
+# specs/002-context-aware-dyadic-support/research.md §2b. Do not collapse these back
+# into one constant: `simplify` sits on the conversational critical path and was chosen
+# for latency, while `hypotheses` was chosen for restraint and evidence fidelity.
+#
+# Stable ids only. Never a *-preview id or a moving alias such as `gemini-flash-latest`:
+# an alias keeps working while changing meaning underneath, which is the last thing a
+# prototype used in participant sessions should sit on. This repo was already broken once
+# by a retirement (8571c30).
+#
+# The legacy `{ text } -> { choices } ` handler still serves the deployed app and keeps
+# using GEMINI_MODEL until T063/T078 replace it.
+[vars]
+GEMINI_MODEL = "gemini-3.6-flash"      # legacy path only — removed in T063/T078
+SIMPLIFY_MODEL = "gemini-3.5-flash-lite"
+HYPOTHESES_MODEL = "gemini-3.6-flash"
