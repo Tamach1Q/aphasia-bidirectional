@@ -21,6 +21,7 @@
     Serve the <strong>repository root</strong> and open <code>/tests/browser/</code>.
     These cover what <code>node --test</code> cannot: pipelines, views, confirmation.
     They are driven by <code>app/capture/inject.js</code> (FR-043) and need no microphone.
+    Each suite exports <code>register(test, inject)</code>.
   </p>
 
   <div id="results"></div>

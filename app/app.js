@@ -1,5 +1,6 @@
 import * as sessionStore from './core/session.js';
 import * as personalContext from './core/personal-context.js';
+import * as inject from './capture/inject.js';
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -18,6 +19,14 @@ import * as personalContext from './core/personal-context.js';
   function recordTurn(speaker, text, source = 'asr') {
     if (!sessionStore.isActive()) return;
     sessionStore.appendTurn({ speaker, text, source });
+  }
+  // T034: injection is reachable only behind ?inject=1, never in a participant session.
+  // Exposed on window so a researcher (or the browser test page) can drive it from the
+  // console without a microphone.
+  if (config002.inject) {
+    inject.enable(true);
+    window.__inject = inject;
+    console.info('[002] injected transcript path enabled (?inject=1)');
   }
   const state = { partnerSessionActive:false, partnerMicActive:false, listening:false, expressive:false, round:0, ambiguityIndex:0, noneCounts:{}, known:[], answers:{}, clarificationHistory:[], fragment:'', confirmed:false, message:'' };
   const ambiguities = [

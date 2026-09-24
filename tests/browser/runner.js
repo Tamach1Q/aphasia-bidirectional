@@ -5,18 +5,25 @@
 // Kept deliberately small — this exists so the checks in quickstart.md can run in a
 // real document, not to be a test framework.
 
+import * as inject from '../../app/capture/inject.js';
+
 const SUITES = [
   // filled in as stages land, e.g. './receptive.test.js'
 ];
 
 export async function runAll(resultsEl, summaryEl) {
+  // T037: every browser suite is driven through the injected transcript path, so none of
+  // them needs a microphone. Suites receive it rather than importing it themselves, which
+  // keeps the enable() call in one place.
+  inject.enable(true);
+
   const cases = [];
   const test = (name, fn) => cases.push({ name, fn });
 
   for (const path of SUITES) {
     try {
       const mod = await import(path);
-      mod.register(test);
+      mod.register(test, inject);
     } catch (err) {
       cases.push({ name: `load ${path}`, fn: () => { throw err; } });
     }
