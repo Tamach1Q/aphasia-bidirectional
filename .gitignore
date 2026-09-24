@@ -1,6 +1,10 @@
 # Raw hearing/interview transcripts — contain personal information, never push.
 docs/sources/
 
+# Agent execution artifacts — loop logs, QA payloads, per-run comments.
+# Regenerated on every run; durable outcomes belong in agent/tasks/<id>/ instead.
+agent/runtime/
+
 # OS cruft
 .DS_Store
 

@@ -1,6 +1,12 @@
 {
   "task": "001-aphasia-conversation-aid",
-  "stage": "product",
-  "status": "draft",
-  "route": "product"
+  "stage": "closed",
+  "status": "superseded",
+  "route": "none",
+  "superseded_by": "002-context-aware-dyadic-support",
+  "superseded_on": "2026-09-24",
+  "final_stage_before_close": "qa",
+  "final_status_before_close": "needs_human",
+  "qa_fix_attempt": "2",
+  "pr_number": "1"
 }

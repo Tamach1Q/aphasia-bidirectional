@@ -1,5 +1,33 @@
 <!--
-Sync Impact Report (1.1.0)
+Sync Impact Report (1.2.0)
+- Version change: 1.1.0 → 1.2.0 (minor: Principle VII materially expanded)
+- Modified principles: VII (User Decides, AI Proposes) — made explicit what the
+  principle always intended but did not state, namely the difference between (a)
+  showing an AI hypothesis to a conversation partner in order to repair a
+  conversation and (b) presenting something as the person's own statement. The
+  prior wording ("before it reaches anyone else or is treated as the user's
+  statement") could be read as prohibiting (a) outright, which would forbid the
+  central mechanism of the revised product design (docs/product.md §13,
+  docs/architecture.md §A7.2). The purpose of the principle is unchanged: the AI
+  must not put words in the person's mouth.
+- Added normative content within VII: a partner-facing hypothesis MUST be marked
+  as unconfirmed AI inference, and MUST NOT be rendered as the person's words.
+  This requirement did not exist before.
+- Version rationale: classified MINOR rather than PATCH because a new MUST was
+  added, not only wording clarified. Product may downgrade to 1.1.1 if it judges
+  this purely editorial.
+- Principle VIII: unchanged. The revised design satisfies it — the bound is now
+  one hypothesis-generation attempt yielding 0–3 candidates, after which the
+  product reports that it could not tell (docs/product.md §15). What is obsolete
+  is the old task-level mapping of VIII onto "max two clarification rounds", not
+  VIII itself.
+- Added sections: none
+- Removed sections: none
+- Follow-up TODOs: none
+-->
+
+<!--
+Sync Impact Report (1.1.0, historical)
 - Version change: 1.0.1 → 1.1.0 (minor: new principles added)
 - Modified sections: removed "Additional Constraints" — it held temporary,
   implementation-specific conditions (target platform, current user-profile scoping)
@@ -101,12 +129,32 @@ rule for this repository.
 
 ### VII. User Decides, AI Proposes
 The AI MUST NOT autonomously communicate, send, speak, or act on behalf of the user.
-Any AI-generated candidate message, response, or inferred meaning MUST be presented
-as a proposal only, and MUST require the user's own explicit confirmation before it
-reaches anyone else or is treated as the user's statement.
-Rationale: the person with aphasia's authority over their own words is the point of
-the product; an AI that decides or speaks for them, even with good intentions,
-replaces the person it exists to support.
+Any AI-generated candidate message, response, or inferred meaning is a proposal only.
+
+This principle governs **whose statement something is**. It does not prohibit anyone
+other than the person from seeing an AI proposal. The distinction is as follows.
+
+**Partner-facing hypotheses are permitted.** An AI-generated hypothesis about what the
+person may be trying to communicate MAY be shown to the conversation partner, for the
+purpose of repairing the conversation, before the person has confirmed it. This is
+support addressed to the partner — a suggestion of what to ask the person about — not
+speech attributed to the person.
+
+**Such a hypothesis MUST be marked as unconfirmed AI inference** wherever it appears. It
+MUST NOT be rendered as the person's words, quoted as their utterance, or presented in a
+way that invites the partner to treat it as settled rather than as something to check
+with the person.
+
+**The person's explicit confirmation is required before anything is presented, sent,
+spoken, or stored as the person's own statement, intent, or decision.** This includes a
+message shown to a third party as the person's words, text-to-speech output, and any
+meaning carried forward as something the person meant.
+
+Rationale: the person with aphasia's authority over their own words is the point of the
+product; an AI that decides or speaks for them, even with good intentions, replaces the
+person it exists to support. But a partner who cannot understand the person is the
+failure this product exists to address, and helping that partner form a better question
+is not the same as speaking for the person. The danger is misattribution, not visibility.
 
 ### VIII. Bounded Inference
 The AI MUST NOT continue guessing indefinitely when it cannot determine the user's
@@ -146,4 +194,4 @@ principles before implementation is marked ready. Complexity or scope that confl
 with a principle MUST be justified explicitly in the relevant spec/plan rather than
 silently overridden.
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-16 | **Last Amended**: 2026-09-17
+**Version**: 1.2.0 | **Ratified**: 2026-09-16 | **Last Amended**: 2026-09-24

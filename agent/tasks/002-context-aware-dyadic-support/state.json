@@ -1,0 +1,8 @@
+{
+  "task": "002-context-aware-dyadic-support",
+  "stage": "product",
+  "status": "ready_for_coding",
+  "route": "coding",
+  "supersedes": "001-aphasia-conversation-aid",
+  "constitution_min_version": "1.2.0"
+}
