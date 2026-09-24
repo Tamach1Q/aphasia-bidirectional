@@ -22,34 +22,51 @@ distinguishes them.
 ## A1. Shape of the system
 
 ```text
-┌──────────────────────────────────────────────────────────┐
-│ app/ — framework-free static web app (GitHub Pages)      │
-│                                                          │
-│  ┌────────────┐   ┌──────────────┐   ┌────────────────┐  │
-│  │  capture   │   │   context    │   │     views      │  │
-│  │  (ASR /    │──▶│   store      │◀──│ person │partner│  │
-│  │   typing)  │   │              │   └────────────────┘  │
-│  └────────────┘   └──────┬───────┘            ▲          │
-│                          │                    │          │
-│                   ┌──────▼───────┐    ┌───────┴───────┐  │
-│                   │  pipelines   │───▶│  hint store   │  │
-│                   │ receptive /  │    │ (held, not    │  │
-│                   │ expressive   │    │  rendered)    │  │
-│                   └──────┬───────┘    └───────────────┘  │
-│                          │                                │
-│                   ┌──────▼───────┐                        │
-│                   │ safety layer │  (local, deterministic)│
-│                   └──────┬───────┘                        │
-└──────────────────────────┼────────────────────────────────┘
-                           │  { op, … } → { op, … } | { error }
-                  ┌────────▼─────────┐
-                  │ worker/ — proxy  │  holds the model key
-                  └────────┬─────────┘
-                           │
-                    ┌──────▼──────┐
-                    │  LLM API    │
-                    └─────────────┘
+                    ┌──────────────┐
+      ASR / typing ─▶│   capture    │
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │context store │  turns · confirmed · personalContext
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │  pipelines   │  receptive · expressive
+                    └──────┬───────┘
+                           │  (1) request   { op, … }
+═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═│═ ═ ═ ═ ═ ═ ═ ═  device boundary
+                           ▼
+                    ┌──────────────┐
+                    │worker/ proxy │  holds the model key
+                    └──────┬───────┘
+                           ▼
+                    ┌──────────────┐
+                    │   LLM API    │
+                    └──────┬───────┘
+                           │  (2) generated response
+═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═ ═│═ ═ ═ ═ ═ ═ ═ ═
+                           ▼
+                    ┌──────────────┐
+                    │ safety layer │  local · deterministic
+                    └──────┬───────┘  suppress on violation (§A6)
+                           ▼
+            ┌──────────────┴──────────────┐
+            ▼                             ▼
+     ┌─────────────┐              ┌──────────────┐
+     │ hint store  │              │  personView  │
+     │ held, NOT   │              │  (receptive  │
+     │  rendered   │              │   output)    │
+     └──────┬──────┘              └──────────────┘
+            │  only when [ことばのヒント] is invoked
+            ▼
+     ┌─────────────┐
+     │ partnerView │
+     └─────────────┘
 ```
+
+Read the ordering carefully: **generation happens off-device, and the safety layer runs on what
+comes back.** The safety layer is never between the pipelines and the Worker, and is never part of
+the request. See §A6.
 
 Delivery remains a framework-free static app served by any static HTTP server, with no build step
 and no account. The Worker exists only so the static app never holds a model key, and remains
@@ -169,7 +186,7 @@ In both cases the context is discarded on session stop or page reload. Nothing i
 hintStore = {
   state: 'empty' | 'ready' | 'unknown',
   fragmentTurnId,
-  hypotheses: [{ text, grounds: [String] }],   // 0–3
+  hypotheses: [{ text, evidence: [EvidenceRef] }],   // 0–3; evidence verified (§A5.3)
   producedAt,
   generation,        // for cancellation, §A9
 }
@@ -348,8 +365,11 @@ Either is fine; the discriminator is chosen to preserve the one-URL, one-CORS-ru
 { "op": "hypotheses",
   "result": "ok" | "unknown",
   "hypotheses": [
-    { "text": "…",
-      "grounds": [ "直前に時間を聞かれている", "「10」と言っている" ] }
+    { "text": "10時",
+      "evidence": [
+        { "source": "turn", "id": "t11", "excerpt": "何時？" },
+        { "source": "turn", "id": "t12", "excerpt": "10" }
+      ] }
   ] }                              // 0–3 items; [] is valid and expected
 // or
 { "error": "…" }
@@ -358,8 +378,46 @@ Either is fine; the discriminator is chosen to preserve the one-URL, one-CORS-ru
 Schema constraints: `minItems: 0`, `maxItems: 3`. `result: "unknown"` is returned when the model has
 no defensible hypothesis, and the app treats it as §15.3, not as a failure.
 
-`grounds` is required per hypothesis because §9.2 specifies that the partner sees *why*, and because
-grounds are what let a partner discount a hypothesis they can see is built on a misreading.
+#### Evidence, not justification
+
+Each hypothesis carries `evidence`: **pointers into the input**, not prose about the model's
+reasoning.
+
+```jsonc
+{ "source": "turn",            "id": "t12",          "excerpt": "10" }
+{ "source": "confirmed",       "id": "c3",           "excerpt": "明日" }
+{ "source": "personalContext", "path": "schedule[0]", "excerpt": "明日 ○○病院" }
+```
+
+The model is not asked *why it thinks so*. It is asked **which parts of the input it used**.
+
+Rationale: a model that produces a wrong hypothesis will also produce fluent, plausible reasons for
+it. Plausible reasons for a wrong reading are worse than no reasons, because they are exactly what
+anchors a partner to it (§26 q6). Free-form justification is therefore excluded from the contract
+rather than left as a choice at implementation time.
+
+#### Verification
+
+`evidence` is **verified locally before display**, because a pointer that can be checked is only
+useful if it is checked:
+
+| `source` | Check |
+|---|---|
+| `turn` | `id` exists in `session.turns`, and `excerpt` is a substring of that turn's `text` |
+| `confirmed` | `id` exists in `session.confirmed`, and `excerpt` is a substring of its `text` |
+| `personalContext` | `path` resolves in the loaded `personalContext`, and `excerpt` matches the value there |
+
+An evidence item that fails verification is **dropped**. The hypothesis itself survives — it simply
+loses that supporting pointer, and may end up with none.
+
+Dropping evidence is deliberately **not** the same decision as dropping the hypothesis. An
+unverifiable pointer means the model cited something that is not in the input; whether the
+hypothesis is safe to show is a separate judgement made by the safety layer (§A6) on the hypothesis
+text. Conflating the two would let a citation error silently suppress a correct hypothesis, or let a
+verified citation vouch for an unsafe one.
+
+Verification failures are logged for research: a high rate is a signal that the prompt or the model
+is wrong for this task.
 
 ### A5.4 Privacy consequence — expanded scope
 
@@ -470,19 +528,32 @@ presence, because a persistent presence is an availability indicator by another 
 
 ```text
 ┌─────────────────────────────┐
-│ person said:  「…」          │
-│ before that:  「…」          │
-│ confirmed:    …             │
+│ person said:  「…10…」       │
+│ before that:  「何時？」      │
+│ confirmed:    明日・病院      │
 ├─────────────────────────────┤
 │ かもしれない意味             │
-│  ・候補  ─ grounds           │
-│  ・候補  ─ grounds           │
+│                             │
+│  10時                       │
+│    ←「何時？」               │
+│    ←「10」                   │
+│                             │
+│  10日                       │
+│    ←「10」                   │
+│                             │
 │ (or: まだ わかりません)       │
 ├─────────────────────────────┤
 │ [どれも ちがいそう]          │
 │ [会話を つづける]            │
 └─────────────────────────────┘
 ```
+
+Evidence is displayed as **quoted excerpts from the conversation**, not as sentences about the AI's
+reasoning (§A5.3). A partner reading 「何時？」「10」 can judge the inference themselves; a partner
+reading 「直前に時間を聞かれているため」 is being told a conclusion.
+
+Only verified evidence is rendered. A hypothesis whose evidence all failed verification is shown
+without any, which is itself informative.
 
 Must be glanceable rather than absorbing (§21.3), since time spent reading it is time not spent
 looking at the person.
@@ -529,7 +600,7 @@ confirmationRequest = {
 } | null
 ```
 
-`partnerView` writes it, `personView` reads it. It carries no grounds, no alternatives, no
+`partnerView` writes it, `personView` reads it. It carries no evidence, no alternatives, no
 confidence, and no reasoning — only the one sentence being asked about. The invariant holds because
 what crosses to the person's side is a question, not the AI's working.
 
@@ -631,33 +702,19 @@ built.
    fragment of a sentence.
 2. **Gate thresholds (§A3.1).** Concrete values for length and entity count. Should be calibrated
    against recorded partner utterances rather than guessed.
-3. **`grounds` must not become free-form LLM justification (§A5.3).** As specified, `grounds` is
-   model-authored prose. A model that produces a wrong hypothesis will also produce plausible
-   reasons for it, and plausible reasons are precisely what anchors a partner to a wrong reading
-   (§26 q6) — making the field actively harmful rather than merely useless.
-   *Direction:* move toward evidence that must exist in the input, so a ground cannot be invented:
-
-   ```jsonc
-   "evidence": [
-     { "turnId": "t11", "excerpt": "何時？" },
-     { "turnId": "t12", "excerpt": "10" }
-   ]
-   ```
-
-   The app can then verify each `turnId`/`excerpt` against `session.turns` and drop unverifiable
-   ones. To be settled during task breakdown.
-4. **Partner view presentation.** Full-screen swap vs. a peek panel, and the physical handover —
+3. **Partner view presentation.** Full-screen swap vs. a peek panel, and the physical handover —
    who holds the phone, and how the view returns to the person.
-5. **Uncertainty display.** Whether `partnerView` shows a coarse confidence band, and whether the
+4. **Uncertainty display.** Whether `partnerView` shows a coarse confidence band, and whether the
    model is asked for one at all. LLM self-reported confidence is weak evidence and may anchor the
-   partner (§26 q6). Related to item 3.
-6. **Model and prompt per op.** `simplify` and `hypotheses` are different tasks with different
+   partner (§26 q6). Note that verified `evidence` (§A5.3) already gives the partner something
+   better to judge by, which may make a confidence band unnecessary.
+5. **Model and prompt per op.** `simplify` and `hypotheses` are different tasks with different
    latency budgets; whether they share a model is open. Current Worker pins `gemini-3.6-flash`.
-7. **Latency budget.** Receptive simplification is now on the conversational critical path. An
+6. **Latency budget.** Receptive simplification is now on the conversational critical path. An
    acceptable ceiling, and behaviour when exceeded, are undefined.
-8. **Personal context schema depth (§A2.4).** The sketch above is minimal; what the researcher can
+7. **Personal context schema depth (§A2.4).** The sketch above is minimal; what the researcher can
    realistically author on the device immediately before a session determines the real shape.
-9. **Icon and image assets (§22).** Source (existing pictogram set / generated / photographed) and
+8. **Icon and image assets (§22).** Source (existing pictogram set / generated / photographed) and
    licensing. Affects bundle size and the no-build-step constraint.
-10. **Safety rule calibration (§A6.3).** Acceptable false-positive rate for suppression, and how
-    violations are reviewed after the test.
+9. **Safety rule calibration (§A6.3).** Acceptable false-positive rate for suppression, and how
+   violations are reviewed after the test.
