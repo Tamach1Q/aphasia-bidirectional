@@ -1,0 +1,29 @@
+{
+  "name": "f07-fragment-with-personal-context",
+  "description": "SYNTHETIC. A fragment that only resolves if the system knows where this person actually goes. Tests condition C2 against C0/C1 — without personal context there is nothing to attach 「さくら」 to.",
+  "turns": [
+    { "speaker": "partner", "text": "今日はどこか行かれますか？" },
+    { "speaker": "person", "text": "…さくら…" }
+  ],
+  "personalContext": {
+    "_note": "SYNTHETIC. Invented. Not a real person.",
+    "people": [
+      { "name": "みどり", "relation": "娘" }
+    ],
+    "places": [
+      { "name": "さくら台病院", "note": "月に一度の外来" },
+      { "name": "駅前のスーパー", "note": "買い物" }
+    ],
+    "schedule": [
+      { "what": "さくら台病院の外来", "when": "毎月第2木曜の午前" }
+    ],
+    "interests": ["電車"],
+    "topics": ["病院の予約", "買い物"]
+  },
+  "expect": {
+    "gate": "skip",
+    "hypotheses": { "min": 1, "max": 3 },
+    "mustCite": "personalContext",
+    "notes": "Under ctx=none or ctx=session the correct outcome is closer to zero hypotheses — 「さくら」 attaches to nothing. Under ctx=personal a reading around さくら台病院 should appear, citing the personalContext path it came from. The comparison between conditions is the measurement; a model that produces the same answer in all three is not using the context it was given."
+  }
+}

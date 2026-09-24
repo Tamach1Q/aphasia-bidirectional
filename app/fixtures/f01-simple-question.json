@@ -1,0 +1,12 @@
+{
+  "name": "f01-simple-question",
+  "description": "SYNTHETIC. A short yes/no question with one clause and no condition. The gate must NOT fire: this fixture proves an ordinary utterance costs zero network calls (FR-008).",
+  "turns": [
+    { "speaker": "partner", "text": "明日、病院行く？" }
+  ],
+  "expect": {
+    "gate": "skip",
+    "preserve": [],
+    "networkCalls": 0
+  }
+}

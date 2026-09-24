@@ -66,14 +66,34 @@ Plays a fixture file turn by turn. Fixture format:
   "personalContext": { … },        // optional; synthetic only
   "expect": {                       // annotations, written in advance
     "gate": "pass" | "skip",
-    "preserve": ["negation", "number", "condition"],
-    "hypotheses": { "min": 0, "max": 3 }
+    "preserve": ["negation", "number", "condition", "time", "place", "action"],
+    "networkCalls": 0,              // optional; asserts the gate kept it off the wire
+    "hypotheses": { "min": 0, "max": 3 },
+    "mustCite": "turn" | "confirmed" | "personalContext",
+    "mustNotProduce": ["…"],        // substrings that must appear in NO hypothesis
+    "notes": "why this fixture exists and what counts as failure"
   }
 }
 ```
 
 `expect` is authored **before** any model is run, so scoring in Stage 0 compares against a
 prior annotation rather than a judgement made after seeing output (research.md §2).
+
+### The `expect` fields
+
+| Field | Applies to | Meaning |
+|---|---|---|
+| `gate` | receptive | `"skip"` means the local gate must NOT fire — an ordinary utterance must cost nothing |
+| `preserve` | `op=simplify` | elements that must survive simplification. A missing one is an **over-reduction failure**, however fluent the output |
+| `networkCalls` | receptive | expected number of model calls; `0` asserts the gate held |
+| `hypotheses` | `op=hypotheses` | permitted count. `{min: 0, max: 0}` means **zero is the only correct answer** |
+| `mustCite` | `op=hypotheses` | the evidence source at least one hypothesis must point at |
+| `mustNotProduce` | either | substrings that must appear in **no** output. Present in a wrong hypothesis even alongside a right one counts as failure — the partner sees the whole list |
+| `notes` | — | prose for a human reader; never parsed |
+
+`mustNotProduce` is how the two hardest fixtures are scored. `f04` uses it for polarity
+reversal (`薬を飲む` when the source said `飲まないで`), and `f08` uses it for anchoring
+(a hospital reading when the conversation was about bedtime).
 
 ## Availability
 

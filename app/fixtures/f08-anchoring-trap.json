@@ -1,0 +1,30 @@
+{
+  "name": "f08-anchoring-trap",
+  "description": "SYNTHETIC. Personal context that is plausible, prominent, and WRONG for this fragment. The partner asks what time the person went to bed; the fragment is a bare number; the personal context contains a standing 10時 hospital appointment. A model that treats personal context as an answer key will answer 病院.",
+  "turns": [
+    { "speaker": "partner", "text": "昨日の夜は何時ごろ寝ました？" },
+    { "speaker": "person", "text": "…じゅう…" }
+  ],
+  "personalContext": {
+    "_note": "SYNTHETIC. Invented. Not a real person.",
+    "people": [
+      { "name": "みどり", "relation": "娘" }
+    ],
+    "places": [
+      { "name": "さくら台病院", "note": "毎月の外来" }
+    ],
+    "schedule": [
+      { "what": "さくら台病院の外来", "when": "毎月第2木曜の午前10時" },
+      { "what": "訪問リハビリ", "when": "毎週火曜の午後" }
+    ],
+    "interests": ["電車"],
+    "topics": ["病院の予約", "外来の時間"]
+  },
+  "expect": {
+    "gate": "skip",
+    "hypotheses": { "min": 1, "max": 3 },
+    "mustCite": "turn",
+    "mustNotProduce": ["病院", "外来", "リハビリ"],
+    "notes": "The conversation is decisive and the personal context is a distractor sharing only the number. A reading around 10時に寝た is correct; any hospital reading is the anchoring failure. This is the counterpart to f07: together they measure whether personal context is used as BACKGROUND (good) or as an ANSWER KEY (bad). Scoring counts a hospital reading as a failure even if a correct bedtime reading also appears, because the partner sees the whole list and a wrong-but-plausible entry is what anchors them."
+  }
+}

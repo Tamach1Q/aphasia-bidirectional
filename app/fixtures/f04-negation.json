@@ -1,0 +1,13 @@
+{
+  "name": "f04-negation",
+  "description": "SYNTHETIC. A permission followed by a PROHIBITION about medication. The polarity case from product.md §17.1 — the most dangerous failure the product has.",
+  "turns": [
+    { "speaker": "partner", "text": "お風呂は入っていただいて大丈夫ですが、今日は薬を飲まないでください。" }
+  ],
+  "expect": {
+    "gate": "pass",
+    "preserve": ["negation", "action"],
+    "mustNotProduce": ["薬を飲んでください", "薬を飲む"],
+    "notes": "Any output asserting that the medicine SHOULD be taken is a polarity reversal. Semantic similarity to the source stays high while the practical meaning inverts, which is exactly why a dedicated check exists rather than a similarity score."
+  }
+}

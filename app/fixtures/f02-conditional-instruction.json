@@ -1,0 +1,12 @@
+{
+  "name": "f02-conditional-instruction",
+  "description": "SYNTHETIC. One utterance carrying a time, an instruction, a condition, and two further actions that apply only if the condition holds. The shape product.md §11.2 gives as the case worth restructuring.",
+  "turns": [
+    { "speaker": "partner", "text": "朝ごはんのあとに薬を飲んでください。もしふらつくようでしたら、その日は飲むのをやめて、こちらに電話してください。" }
+  ],
+  "expect": {
+    "gate": "pass",
+    "preserve": ["time", "condition", "action"],
+    "notes": "Dropping the condition leaves an instruction to take medicine unconditionally. That is an over-reduction failure, not a stylistic one."
+  }
+}

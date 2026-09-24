@@ -1,0 +1,12 @@
+{
+  "name": "f06-fragment-unanswerable",
+  "description": "SYNTHETIC. A bare deictic with no referent, no preceding turn, and no personal context. Nothing in the input determines a meaning. THE CORRECT ANSWER IS ZERO HYPOTHESES.",
+  "turns": [
+    { "speaker": "person", "text": "…あれ…" }
+  ],
+  "expect": {
+    "gate": "skip",
+    "hypotheses": { "min": 0, "max": 0 },
+    "notes": "This is the restraint test, and the one most likely to be quietly softened later. A model that offers a plausible-sounding guess here has FAILED, not come close: with no context, any hypothesis is invented, and an invented hypothesis shown to a partner is exactly the anchoring failure §26 q6 exists to catch. Scoring treats guessing here as a failure, never as a near-miss. Human raters could not resolve roughly a fifth of real cases even with audio and video — a product that never says 'I cannot tell' is not matching them, it is bluffing."
+  }
+}

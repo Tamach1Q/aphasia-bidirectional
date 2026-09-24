@@ -1,0 +1,12 @@
+{
+  "name": "f03-multi-entity",
+  "description": "SYNTHETIC. Two candidate appointment slots plus a place, in one utterance. Several distinct times, numbers and a location — the entity-count gate signal.",
+  "turns": [
+    { "speaker": "partner", "text": "次の予約ですが、来週の火曜日の10時半か、木曜日の14時が空いています。どちらも3階の受付に来ていただく形になります。" }
+  ],
+  "expect": {
+    "gate": "pass",
+    "preserve": ["time", "number", "place"],
+    "notes": "Both slots must survive. Collapsing to one is an over-reduction failure: the person can no longer choose."
+  }
+}
