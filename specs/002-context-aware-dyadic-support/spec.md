@@ -206,8 +206,9 @@ The person produces a fragment. The partner does not know what it means.
   multiple simultaneous candidates. (§9.1)
 - **FR-035**: The partner's view MAY display recent turns, confirmed context, hypotheses, verified
   evidence, and uncertainty, and MUST be glanceable rather than absorbing. (§9.2, §21.3)
-- **FR-036**: Support controls and meaning options MUST pair an icon or image with text, not text
-  alone. (§22.1, §22.2)
+- **FR-036**: Support controls MUST pair an icon with text. Meaning options SHOULD pair text with an
+  icon or image **when the visual representation is unambiguous and useful**. The system MUST NOT
+  attach a misleading or vague visual merely to avoid text-only presentation. (§22.1, §22.2, §22.3)
 - **FR-037**: The prototype MUST be fully usable one-handed with the left hand. No primary action
   may require right-hand reach, and no interaction may require two hands or simultaneous touches.
   (§21.2)

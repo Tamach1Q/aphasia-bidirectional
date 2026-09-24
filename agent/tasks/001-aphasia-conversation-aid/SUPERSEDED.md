@@ -54,4 +54,7 @@ above, which now lives in 002.
 - the QA environment constraint (above)
 - reusable implementation, catalogued in `docs/architecture.md` §A9 — session start/stop, the two
   ASR modes, the generation-counter cancellation mechanism, the Worker skeleton, DOM helpers, layout
-- PR #1 remains open history; it implements the superseded model and should not be merged
+- PR #1 is retained as the historical implementation of the superseded model. It was **already
+  merged** (2026-09-18, merge commit `00ea9cf`) before the redesign, so its code is present on
+  `main`. Task 002 is expected to remove or rework it — see `docs/architecture.md` §A10 for the
+  itemised deletion list.

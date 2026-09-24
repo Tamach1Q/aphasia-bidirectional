@@ -57,14 +57,20 @@ Follow `docs/product.md` §29.1. Suggested sequencing, since some items gate oth
 2. **Injected transcript path** (FR-043) — build this *early, not last*. It is how anything gets
    tested at all (see Known QA constraint below).
 3. Session start/stop, partner transcription (FR-001, FR-007) — largely reusable, see below.
-4. Receptive pipeline: gate → simplify → settle (FR-008 – FR-011).
-5. Safety layer (FR-026 – FR-030) — before the expressive pipeline, so hypotheses are never
-   displayed unchecked even during development.
-6. Expressive pipeline + hint store (FR-012 – FR-018), with the non-intervention invariants
-   (FR-019 – FR-022) built in from the start.
+4. **Safety layer skeleton** (FR-026 – FR-030) — **before any pipeline that displays model output.**
+5. Receptive pipeline: gate → simplify → **safety** → settle (FR-008 – FR-011).
+6. Expressive pipeline: fragment → hypotheses → **safety** → hint store (FR-012 – FR-018), with the
+   non-intervention invariants (FR-019 – FR-022) built in from the start.
 7. Views and confirmation (FR-023, FR-034, FR-035).
 8. Support requests, fallback, accessibility (FR-031 – FR-033, FR-036, FR-037).
 9. Research instrumentation (FR-039 – FR-042).
+
+> **Why safety comes before the receptive pipeline.** The safety layer applies to *every* path that
+> produces language, simplification included (§A6). Building the receptive pipeline first would
+> create an intermediate state in which model output reaches the screen unchecked. That state tends
+> to persist — it works, so it ships — and it is exactly the state FR-026 exists to prevent. Stand up
+> the skeleton first, even if individual checks are stubs, so no display path is ever wired without
+> passing through it.
 
 ## Reuse from the existing implementation
 
