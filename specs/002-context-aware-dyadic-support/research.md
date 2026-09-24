@@ -19,7 +19,7 @@ open questions that block implementation rather than the user test.
 | OQ-7 | Latency ceiling | §7 — model-call latency measured; **ceiling still open**, needs end-to-end on the test device |
 | OQ-8 | Personal context schema depth | §8 — minimal schema decided, revisit after a rehearsal |
 | OQ-9 | Icon and image assets | §3 — **resolved** |
-| OQ-10 | Safety calibration | §9 — direction decided, rate measured in Stage 4 |
+| OQ-10 | Safety calibration | §9 — **measured**: 43.6% → 0.0% false positives after three design fixes; small sample, re-measure on Stage 5 output |
 
 ---
 
@@ -440,6 +440,66 @@ it.
 
 Rule-based Japanese polarity and subject detection will be imperfect; Phase 1 accepts this
 explicitly (§A6.3) rather than deferring safety until it can be done well.
+
+### Measured — 2026-09-24 (T056)
+
+`tools/safety-calibrate.mjs` runs the layer over the real Stage 0 model output. Those responses
+were read by hand and judged correct, so anything suppressed here is a **false positive** — a
+correct candidate the product would have thrown away.
+
+| | False-positive rate |
+|---|---|
+| First implementation | **43.6%** (34 of 78) |
+| After the corrections below | **0.0%** (0 of 27) |
+
+The first number was not a tuning problem. It exposed three design errors that only running the
+checks against real output could surface.
+
+#### 1. The checks were mode-blind — the largest error
+
+`number` and `time` were applied to **hypotheses**, where they are simply wrong. A hypothesis
+exists to propose a reading the source does not state literally: resolving 「じゅう」 to 10時, or
+「さくら」 to さくら台病院, is the product working. The layer was suppressing **every f08 answer** —
+the fixture built to prove the model resists anchoring.
+
+`check()` now takes a mode:
+
+| Mode | Used by | Claim being made | Restatement checks |
+|---|---|---|---|
+| `restate` | `simplify` | says the same thing more simply | `number`, `time` apply |
+| `interpret` | `hypotheses` | a possible reading of a fragment | they do not |
+
+`polarity`, `action`, `medication` and `consent` apply in **both**. Inverting an instruction or
+asserting agreement is never legitimate, whatever the output claims to be. An unspecified mode
+defaults to `restate` — the stricter one, which is the safe direction to be wrong in.
+
+#### 2. Structured output was judged line by line
+
+「お風呂：入って大丈夫です」 was suppressed for dropping a negation that was sitting in the very
+next line. The person sees the whole block, so the layer judges the whole block.
+
+#### 3. Counting negations instead of detecting them
+
+A structured simplification restates the same prohibition twice — once in the summary, once in the
+breakdown — which counting read as `1 → 2`. Presence-based detection has **the same detection
+power**: a negation that *moves* to a different clause (「薬を飲まないで、電話して」 →
+「薬を飲んで、電話しないで」) keeps the count at 1 and slips past either rule.
+
+> **Known gap, recorded rather than papered over.** Negation *relocation* is not caught. Detecting
+> it needs clause alignment, which a rule-based check in Phase 1 does not attempt.
+
+Two smaller fixes fell out of the same run: list markers (「1. 朝ごはん…」) were being read as
+quantities, and clock rewordings (`10時半` → `10:30`) as invented numbers.
+
+#### What the figure does and does not mean
+
+0% on 27 candidates from 8 fixtures is **not** evidence the layer is correctly calibrated. It is
+evidence it no longer suppresses the specific correct outputs observed so far. The set is small,
+drawn from one evaluation run, and contains no adversarial cases.
+
+What it does establish is that the layer is no longer useless — at 43.6%, nearly half of all
+correct output would have degraded to fallback, and the product would have looked rigorous while
+failing to work. Re-measure whenever the checks change, and again on Stage 5 output.
 
 ---
 
