@@ -38,7 +38,8 @@ deployed. Development serves the repository root; deployment serves `app/` alone
 - [ ] T002 [P] Convert `app/index.html` to load `app/app.js` with `type="module"` and verify the page still renders
 - [ ] T003 [P] Create `tests/unit/` with a trivial passing `node --test` file to confirm the runner works with zero dependencies
 - [ ] T004 [P] Create `tests/browser/index.html` as an empty harness page that loads modules from `../../app/`
-- [ ] T005 [P] Create `app/context/sample-01.json` — a SYNTHETIC personal-context fixture per data-model.md §4; add a header comment stating no real participant data may be placed in this directory (FR-005)
+- [ ] T005 [P] Create `app/context/sample-01.json` — a SYNTHETIC personal-context fixture per data-model.md §4 (strict JSON, no comments possible)
+- [ ] T005a [P] Create `app/context/README.md` warning that this directory is publicly served and may hold synthetic fixtures ONLY — no real participant name, place, appointment or utterance (FR-005). Mirror the same warning in `app/fixtures/README.md`
 - [ ] T006 [P] Add `tools/` to the repository with a README stating it is never deployed
 
 **Checkpoint**: page loads as modules, `node --test` runs, directories exist.
@@ -53,7 +54,11 @@ every pipeline so that `main` never carries a display path that bypasses safety 
 ### Stage 0 — Model selection (resolves OQ-6)
 
 **Do not execute these during task generation.** They are the first executable work items.
-Prerequisite: an API key available to `tools/`, separate from the deployed Worker secret.
+
+**API key handling**: `tools/` reads the key from the `GEMINI_API_KEY` environment variable **only**.
+It is never written into a fixture, a prompt file, `research.md`, an evaluation result, `wrangler.toml`,
+or any other file in the repository, and never printed to a log. This is separate from the deployed
+Worker secret.
 
 Fixtures are authored against [contracts/injected-transcript.md](./contracts/injected-transcript.md)
 so they become the regression suite, not throwaway scripts.
@@ -75,7 +80,7 @@ so they become the regression suite, not throwaway scripts.
 - [ ] T021 Run the simplify evaluation and write the results table to `research.md` §2
 - [ ] T022 Run the hypotheses evaluation and write the results table to `research.md` §2
 - [ ] T023 Apply the decision rule from research.md §2 and record a one-line decision PER OPERATION in `research.md` §2 — including "baseline retained" as a valid, recorded outcome
-- [ ] T024 Update `worker/wrangler.toml` and `worker/index.js` so the two operations can name DIFFERENT models from configuration; remove the single hard-coded `GEMINI_MODEL` constant
+- [ ] T024 Add per-operation model configuration to `worker/wrangler.toml` (e.g. `SIMPLIFY_MODEL`, `HYPOTHESES_MODEL`) **without touching the live legacy path**. The deployed Worker still serves the old `{text} → {choices}` contract until T063/T078 land, so `GEMINI_MODEL` and the existing handler MUST keep working; removal of the constant belongs in T063/T078
 - [ ] T025 Record the measured latencies in `research.md` §7 as the input to setting the OQ-7 ceiling
 
 **Checkpoint**: OQ-6 closed with evidence. Stage 5 unblocked.
@@ -84,11 +89,11 @@ so they become the regression suite, not throwaway scripts.
 
 - [ ] T026 [P] Implement `app/core/session.js` — `Session`, `Turn` ring buffer with `MAX_TURNS = 6`, per data-model.md §1–§2
 - [ ] T027 [P] Implement `app/core/personal-context.js` — read-only loader, in-memory only, no setter and no storage API call anywhere in the module (data-model.md §4)
-- [ ] T028 Implement the single-writer `confirmMeaning(hypothesisId)` mutator in `app/core/session.js` as the ONLY path that appends to `confirmed` (FR-003, data-model.md §3)
+- [ ] T028 Implement the single-writer `confirmSelected()` mutator in `app/core/session.js` as the ONLY path that appends to `confirmed`. It accepts no UI-supplied text and builds `Confirmed {text, basis}` from the trusted snapshot passed by `app/views/partner.js`, so `session.js` never imports the hint store (FR-003, data-model.md §3, §8)
 - [ ] T029 Implement `Config` parsing and freezing in `app/core/session.js` per data-model.md §6
-- [ ] T030 [P] Write `tests/unit/session.test.js` — ring buffer bounds at MAX_TURNS; eviction is oldest-first; interim text never creates a Turn; `confirmed` is unwritable except through `confirmMeaning`; `config` is frozen after start
+- [ ] T030 [P] Write `tests/unit/session.test.js` — ring buffer bounds at MAX_TURNS; eviction is oldest-first; interim text never creates a Turn; `confirmed` is unwritable except through `confirmSelected`; `session.js` imports nothing from `core/hint-store.js`; `config` is frozen after start
 - [ ] T031 [P] Write `tests/unit/personal-context.test.js` — no mutation path exists; grep-level assertion that the module references no `localStorage`/`indexedDB`/`document.cookie`; `?config=` resolves only under `app/context/`
-- [ ] T032 Delete the old flat `state` object from `app/app.js:4` (`round`, `ambiguityIndex`, `noneCounts`, `known`, `answers`, `clarificationHistory`) and wire `app.js` to `core/session.js`
+- [ ] T032 Wire `app/app.js` to `app/core/session.js` **alongside** the existing flat `state` object. **Do NOT delete `app/app.js:4` yet** — ~100 references to `state.*` remain in the superseded expressive flow, which is not removed until T086/T087. Deleting it here would break the running app and contradict plan.md's "app stays runnable throughout"
 
 ### Stage 2 — Injected transcript path (FR-043)
 
@@ -175,25 +180,25 @@ invoke `[ことばのヒント]` and assert the partner view appears with verifi
 
 - [ ] T070 [P] [US2] Write `tests/unit/hint-store.test.js` — writing a hypothesis has no render side effect; state transitions per data-model.md §5; generation counter discards stale responses
 - [ ] T071 [P] [US2] Write `tests/unit/evidence-verify.test.js` — a pointer to a non-existent turn is dropped while the hypothesis SURVIVES; an excerpt absent from the cited turn is dropped; a reference to an evicted turn is unverifiable, not an error
-- [ ] T072 [P] [US2] Write `tests/unit/import-invariant.test.js` — grep over import statements asserting **no module except `app/views/partner.js` imports `app/core/hint-store.js`** (FR-022)
+- [ ] T072 [P] [US2] Write `tests/unit/import-invariant.test.js` — grep over import statements asserting that `getHintSnapshot` is imported **only** by `app/views/partner.js`, and that `app/views/person.js` imports **nothing** from `app/core/hint-store.js`. `app/pipelines/expressive.js` importing the writers is expected and must NOT fail the test (FR-022, data-model.md §5.1)
 - [ ] T073 [US2] Write `tests/browser/non-intervention.test.html` — after hypotheses are generated, assert **zero DOM mutation** and that no indicator/badge/banner element exists anywhere in the document (FR-019)
 - [ ] T074 [US2] Write `tests/browser/confirmation.test.html` — the person's view shows exactly ONE hypothesis with はい/ちがう and never a list (FR-023); only はい writes to `session.confirmed` (FR-024)
 
 ### Implementation for User Story 2
 
-- [ ] T075 [P] [US2] Implement `app/core/hint-store.js` as pure data with no render side effect, per data-model.md §5
+- [ ] T075 [P] [US2] Implement `app/core/hint-store.js` as pure data with no render side effect, exporting writers (`setHypotheses`, `setUnknown`, `clearHints`) and the reader (`getHintSnapshot`) as **separate surfaces** per data-model.md §5.1
 - [ ] T076 [P] [US2] Implement `app/evidence/verify.js` — verify `turn`/`confirmed`/`personalContext` pointers against the live session; drop the pointer, keep the hypothesis (FR-017, data-model.md §7)
-- [ ] T077 [US2] Implement `app/pipelines/expressive.js` — fragment → hypotheses request → safety → evidence verification → `hintStore.set()`; **nothing renders at any step**
+- [ ] T077 [US2] Implement `app/pipelines/expressive.js` — fragment → hypotheses request → safety → evidence verification → `setHypotheses()` / `setUnknown()`. It imports the writers only, never `getHintSnapshot`. **Nothing renders at any step**
 - [ ] T078 [US2] Add `op: "hypotheses"` to `worker/index.js` per contracts/worker-api.md §"hypotheses", using `worker/prompts/hypotheses.txt` and the model chosen in T023
 - [ ] T079 [US2] Set the `hypotheses` response schema in `worker/index.js` to `minItems: 0, maxItems: 3` and support `result: "unknown"` — the old `minItems: 2` made zero candidates unrepresentable (FR-015)
 - [ ] T080 [US2] Implement fragment capture in `app/capture/asr.js` WITHOUT a mandatory review step; make editing reachable on demand only (FR-013)
-- [ ] T081 [US2] Implement `app/views/partner.js` — the sole reader of `hint-store`; renders 0–3 hypotheses, each marked as unconfirmed AI inference, each with verified excerpts quoted from the conversation (FR-018, §A7.2)
+- [ ] T081 [US2] Implement `app/views/partner.js` — the sole caller of `getHintSnapshot`; renders 0–3 hypotheses, each marked as unconfirmed AI inference, each with verified excerpts quoted from the conversation (FR-018, §A7.2)
 - [ ] T082 [US2] Implement `[ことばのヒント]` in `app/views/person.js` as the ONLY entry point to `app/views/partner.js`, with no persistent panel and no availability indicator (FR-019, FR-020)
-- [ ] T083 [US2] Implement `ConfirmationRequest` per data-model.md §8 — written by `app/views/partner.js`, read by `app/views/person.js`, carrying only `{text, hypothesisId}`
+- [ ] T083 [US2] Implement the two-structure confirmation flow per data-model.md §8: `SelectedConfirmation {hypothesisId, text, basis[]}` held **internally** by `app/views/partner.js` (basis derived from the hypothesis's verified evidence), and `ConfirmationRequest {hypothesisId, text}` as the only thing `app/views/person.js` sees
 - [ ] T084 [US2] Implement the single-hypothesis confirmation surface in `app/views/person.js` with `[はい]`/`[ちがう]` (FR-023, §A7.3)
-- [ ] T085 [US2] Wire `[はい]` in `app/views/person.js` to `confirmMeaning()` in `app/core/session.js` as the only write path into `session.confirmed` (FR-024)
+- [ ] T085 [US2] Wire `[はい]` in `app/views/person.js` to `confirmSelected()` in `app/core/session.js` as the only write path into `session.confirmed`. `confirmSelected()` takes **no arguments from the UI** — it commits the partner-side snapshot, so `session.js` never reads the hint store and `basis` is not lost (FR-024, data-model.md §8)
 - [ ] T086 [US2] Delete the clarification machinery from `app/app.js`: `ambiguities` (5-9), `nextClarification`/`showClarification`/`noneOfThese`/`choicesFor` (183-186), `contentChoicesFor`/`contentClause`/`buildMessage`/`timeWord`/`topicWord`/`personMention` (198-228), `directCandidates`/`showDirectCandidates` (229-239)
-- [ ] T087 [US2] Delete `modeA` (`app/app.js:3`) and the mandatory `renderFragmentForm` on capture (`app/app.js:163-170`)
+- [ ] T087 [US2] Delete `modeA` (`app/app.js:3`), the mandatory `renderFragmentForm` on capture (`app/app.js:163-170`), and — now that T086 removed its last readers — the flat `state` object at `app/app.js:4` (deferred here from T032)
 - [ ] T088 [US2] Delete `showConfirm` (`app/app.js:240`), `showOutput`/`speakConfirmed` (`app/app.js:244-246`) and the rotation CSS (`app/styles.css:49-50`) — Phase 2 features
 - [ ] T089 [US2] Migrate shared DOM helpers from `app/app.js:20-23,173-180` into `app/views/dom.js`
 

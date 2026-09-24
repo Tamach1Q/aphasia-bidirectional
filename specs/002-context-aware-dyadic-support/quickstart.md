@@ -69,7 +69,7 @@ around, only by a participant.
 | # | Must hold | Requirement |
 |---|---|---|
 | 1 | After hypotheses are generated, **nothing renders**: zero DOM mutation, no badge, no banner, no indicator element exists | FR-019 |
-| 2 | No module except `views/partner.js` imports `hint-store` — a grep over import statements | FR-022 |
+| 2 | `getHintSnapshot` is imported only by `views/partner.js`, and `views/person.js` imports nothing from `hint-store` — a grep over import statements. (The pipeline imports the *writers*; that is intended — see data-model.md §5.1) | FR-022 |
 | 3 | `f01-simple-question` produces **zero network calls** | FR-008 |
 | 4 | `f06-fragment-unanswerable` yields **zero hypotheses**, handled as normal, not as an error | FR-015 |
 | 5 | An evidence pointer to a non-existent turn is dropped; **the hypothesis survives** | FR-017 |
@@ -79,7 +79,7 @@ around, only by a participant.
 | 9 | `?ai=off` constructs **no** `SpeechRecognition` object | FR-039 |
 | 10 | `?ctx=none` request body contains `fragment` **and nothing else** | FR-040 |
 | 11 | Settled content is never silently replaced; a revision is marked as a change | FR-010 |
-| 12 | Only `[はい]` writes to `session.confirmed` | FR-003, FR-024 |
+| 12 | Only `[はい]` writes to `session.confirmed`, and it commits the partner-side snapshot rather than UI-supplied text | FR-003, FR-024 |
 
 Check 1 is the one most likely to regress later, because every regression of it looks like a
 helpful improvement.

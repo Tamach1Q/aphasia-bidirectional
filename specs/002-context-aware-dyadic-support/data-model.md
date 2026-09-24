@@ -76,8 +76,12 @@ Confirmed {
 > An entry is appended **only** by the person-side confirmation action.
 
 Enforced structurally: `core/session.js` exports exactly one mutator for this collection
-(`confirmMeaning(hypothesisId)`), and no pipeline, view, worker response, or partner action has
+(`confirmSelected()`, see §8), and no pipeline, view, worker response, or partner action has
 access to any other path that appends.
+
+`confirmSelected()` takes no arguments from the UI — it commits the trusted snapshot the partner
+view already holds (§8), so `session.js` never needs to read the hint store in order to build
+`text` and `basis`.
 
 This is the code-level form of product §2.9 and §18.4 path B. Not bounded — a session's confirmed
 set is small by nature.
@@ -137,13 +141,36 @@ Hypothesis {
 }
 ```
 
+### 5.1 Module API — read and write are separate exports
+
+The store is not a single opaque object. Reading and writing are **separate exported surfaces**, so
+the access rule can be enforced mechanically:
+
+```js
+// writers — imported by pipelines/expressive.js
+setHypotheses(fragmentTurnId, hypotheses, generation)
+setUnknown(fragmentTurnId, generation)
+clearHints()
+
+// reader — imported by views/partner.js ONLY
+getHintSnapshot() → { state, hypotheses, fragmentTurnId, producedAt } | null
+```
+
 **Invariants**
 
 - **Writing to this store has no render side effect.** It is plain data.
-- **Only `views/partner.js` may import it for reading.** Enforceable by grep over import
-  statements, and asserted in tests (FR-022).
+- **Only `views/partner.js` may import `getHintSnapshot`.** `pipelines/expressive.js` imports the
+  writers and nothing else. `views/person.js` imports **nothing** from this module.
 - `hypotheses` contains only candidates that passed safety (§A6) and whose evidence was verified
   (§7). Raw model output never lands here.
+
+> The rule is about **who may read**, not who may import the file. The pipeline must obviously be
+> able to write, or the store could never be filled. Stating the rule as "only the partner view may
+> import this module" would make it unsatisfiable alongside the expressive pipeline — splitting the
+> exports is what makes it both true and checkable (FR-022).
+
+Test form: assert that `views/person.js` imports nothing from `core/hint-store.js`, and that
+`getHintSnapshot` appears in no import list except `views/partner.js`'s.
 
 **State transitions**
 
@@ -235,24 +262,66 @@ wrong for the task.
 
 ---
 
-## 8. ConfirmationRequest (FR-023)
+## 8. Confirmation flow (FR-023, FR-024)
+
+Two structures, deliberately separate: an **internal snapshot** the partner view holds, and a
+**minimal request** the person's view sees.
 
 ```js
-ConfirmationRequest {
-  text         : string   // the single hypothesis under discussion
+// INTERNAL — held by views/partner.js, never rendered to the person
+SelectedConfirmation {
   hypothesisId : string
+  text         : string
+  basis        : string[]   // Turn ids, derived from the hypothesis's verified evidence
+} | null
+
+// UI — what crosses to the person's side
+ConfirmationRequest {
+  hypothesisId : string
+  text         : string
 } | null
 ```
 
-Written by `views/partner.js`, read by `views/person.js`.
+### Why two
 
-**Invariant**: carries no evidence, no alternatives, no confidence, no reasoning — only the one
-sentence being asked about. This is what preserves "the person's view never reads the hint store"
-while still letting the person see what they are agreeing to. What crosses to the person's side is a
-question, not the AI's working (§A7.3).
+`Confirmed` (§3) needs `text` **and** `basis`. If the person's side only carried
+`{text, hypothesisId}` and the session mutator had to reconstruct `basis` from `hypothesisId`, then
+`core/session.js` would have to read the hint store — which breaks the rule that only the partner
+view reads it (§5.1).
 
-`[はい]` → `confirmMeaning(hypothesisId)` → appends to `Confirmed` (§3), the only write path.
-`[ちがう]` → clears the request; the hypothesis is marked rejected for this fragment.
+Keeping a trusted snapshot on the partner side, where the hypothesis was already in hand, avoids
+that entirely.
+
+### Flow
+
+```text
+partnerView: partner picks one hypothesis to check
+        ↓
+selectedConfirmation = { hypothesisId, text, basis }      ← internal, from the hypothesis
+        ↓
+confirmationRequest  = { hypothesisId, text }             ← the only thing personView sees
+        ↓
+personView renders that single sentence + [はい] [ちがう]
+        ↓
+[はい] → confirmSelected()
+        ↓
+core/session.js appends Confirmed { text, basis } from the trusted snapshot
+```
+
+`confirmSelected()` takes **no arguments from the UI**. It commits the snapshot the partner view
+already holds, so the person's tap cannot smuggle in text that was never on screen, and
+`session.js` never needs access to hypotheses.
+
+`[ちがう]` clears both structures; the hypothesis is marked rejected for this fragment.
+
+### Invariants
+
+- `ConfirmationRequest` carries no evidence, no alternatives, no confidence, no reasoning — only the
+  one sentence being asked about (§A7.3).
+- `basis` is derived from the hypothesis's **verified** evidence (§7). Unverifiable pointers were
+  already dropped, so `basis` never cites a turn that does not exist.
+- `confirmSelected()` is the single writer into `Confirmed` (§3).
+- `views/person.js` reads `ConfirmationRequest` only, and still imports nothing from the hint store.
 
 ---
 
@@ -296,7 +365,10 @@ HintStore           (separate from Session — unconfirmed inference never
       └── evidence[] EvidenceRef ──▶ cites Turn.id / Confirmed.id /
                                      PersonalContext path
 
-ConfirmationRequest ──▶ references one Hypothesis.id
+SelectedConfirmation ─▶ internal to views/partner.js
+ │                       { hypothesisId, text, basis[] }
+ ▼
+ConfirmationRequest ──▶ { hypothesisId, text }
                         (the only hypothesis data the person's view may see)
 ```
 

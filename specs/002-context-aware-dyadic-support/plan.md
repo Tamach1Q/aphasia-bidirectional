@@ -174,9 +174,9 @@ authored against the injected transcript contract, not as throwaway scripts.
 | | |
 |---|---|
 | **Files** | `app/core/session.js`, `app/core/personal-context.js` (new); `app/app.js` (wire) |
-| **Delete** | `app.js:4` — the flat `state` object holding `round`, `ambiguityIndex`, `noneCounts`, `known`, `answers`, `clarificationHistory` |
+| **Delete** | **nothing yet.** The flat `state` object at `app.js:4` is still read in ~100 places by the superseded expressive flow, which is not removed until Stage 6. Run the new store *alongside* it; delete it in Stage 6 |
 | **Reuse** | nothing directly; the existing state object is the wrong shape |
-| **Automated acceptance** | turns ring buffer bounds at `MAX_TURNS`; interim text never enters `turns` (FR-002); `confirmed` is writable through exactly one exported function and rejects writes from any other path (FR-003); personal context has no setter and no storage API call anywhere in the module (FR-004); `?config=` loads only from `app/context/` (FR-005) |
+| **Automated acceptance** | turns ring buffer bounds at `MAX_TURNS`; interim text never enters `turns` (FR-002); `confirmed` is writable through exactly one exported function (`confirmSelected()`) and rejects writes from any other path (FR-003); that function takes no UI-supplied text, so `session.js` never reads the hint store (data-model.md §8); personal context has no setter and no storage API call anywhere in the module (FR-004); `?config=` loads only from `app/context/` (FR-005) |
 | **Manual/device** | none |
 | **Open questions** | **OQ-8** (personal context schema depth) — build the minimal schema in data-model.md and revisit |
 
@@ -249,9 +249,9 @@ if necessary, so no display path is ever wired around it.
 | | |
 |---|---|
 | **Files** | `app/core/hint-store.js`, `app/pipelines/expressive.js`, `app/evidence/verify.js` (new); `worker/index.js`, `worker/prompts/hypotheses.*` |
-| **Delete** | `app.js:5-9` `ambiguities`; `183-186` `nextClarification`/`showClarification`/`noneOfThese`/`choicesFor`; `198-228` `contentChoicesFor`/`contentClause`/`buildMessage`/`timeWord`/`topicWord`/`personMention`; `229-239` `directCandidates`/`showDirectCandidates`; `app.js:3` `modeA`; `163-170` mandatory `renderFragmentForm` on capture |
+| **Delete** | the flat `state` object (`app.js:4`), now that its last readers go; `app.js:5-9` `ambiguities`; `183-186` `nextClarification`/`showClarification`/`noneOfThese`/`choicesFor`; `198-228` `contentChoicesFor`/`contentClause`/`buildMessage`/`timeWord`/`topicWord`/`personMention`; `229-239` `directCandidates`/`showDirectCandidates`; `app.js:3` `modeA`; `163-170` mandatory `renderFragmentForm` on capture |
 | **Reuse** | generation counters → `hintStore.generation`; fragment capture (`app.js:139-160`) minus the forced review; Worker retry/backoff |
-| **Automated acceptance** | hypotheses are 0–3 and an empty set is a normal result, not an error (FR-015); schema permits `minItems: 0`; after generation **nothing renders** — assert zero DOM mutation and no indicator element exists (FR-019); `grep` shows no module but `views/partner.js` imports `hint-store` (FR-022); an evidence pointer to a non-existent turn is dropped while the hypothesis survives (FR-017); an excerpt not present in the cited turn is dropped; a capture does **not** require review before proceeding (FR-013); silence produces no call (FR-021) |
+| **Automated acceptance** | hypotheses are 0–3 and an empty set is a normal result, not an error (FR-015); schema permits `minItems: 0`; after generation **nothing renders** — assert zero DOM mutation and no indicator element exists (FR-019); `grep` shows `getHintSnapshot` imported only by `views/partner.js`, and `views/person.js` importing nothing from `hint-store` (FR-022, data-model.md §5.1); an evidence pointer to a non-existent turn is dropped while the hypothesis survives (FR-017); an excerpt not present in the cited turn is dropped; a capture does **not** require review before proceeding (FR-013); silence produces no call (FR-021) |
 | **Manual/device** | that nothing visibly changes during a real conversation while hypotheses are being produced |
 | **Open questions** | **OQ-6** must be closed (Stage 0) before the prompt is finalized |
 
@@ -264,7 +264,7 @@ if necessary, so no display path is ever wired around it.
 | **Files** | `app/views/person.js`, `app/views/partner.js`, `app/views/dom.js` |
 | **Delete** | `app.js:240` `showConfirm` (sentence-approval form); `app.js:244-246` `showOutput`/`speakConfirmed` and the rotation CSS (`styles.css:49-50`) — Phase 2 |
 | **Reuse** | `setMain`, `showChoices`, `addAction`, `escapeHtml`, `renderFlowView` (`app.js:20-23,173-180`); shell layout and `.choice` sizing |
-| **Automated acceptance** | partner view is reachable **only** via explicit invocation (FR-020); person view renders exactly one hypothesis with はい/ちがう and never a list (FR-023); person view never displays evidence, confidence or reasoning (FR-034); `confirmationRequest` carries only `{text, hypothesisId}`; はい is the only path that writes `session.confirmed` (FR-024) |
+| **Automated acceptance** | partner view is reachable **only** via explicit invocation (FR-020); person view renders exactly one hypothesis with はい/ちがう and never a list (FR-023); person view never displays evidence, confidence or reasoning (FR-034); `confirmationRequest` carries only `{hypothesisId, text}` while `selectedConfirmation` (internal to `partner.js`) carries `basis` as well; はい is the only path that writes `session.confirmed` (FR-024, data-model.md §8) |
 | **Manual/device** | **required** — glanceability of the partner view; whether looking at the screen breaks eye contact (this is a §25.2 research observation, surfaced early) |
 | **Open questions** | **OQ-4** (full swap vs peek, device handover), **OQ-5** (whether uncertainty is shown at all) |
 
@@ -327,5 +327,5 @@ they are not "simplified" away later:
 
 | Constraint | Why | Simpler alternative rejected because |
 |---|---|---|
-| `hint-store` importable only by `views/partner.js` | Makes FR-019 structural | A convention plus review; the failure mode is silent and only visible to a participant |
+| `getHintSnapshot` importable only by `views/partner.js`; `views/person.js` imports nothing from the store | Makes FR-019 structural. Writers stay available to the pipeline, so the rule is satisfiable | A convention plus review; the failure mode is silent and only visible to a participant |
 | Safety is a separate module, never the generating model | Makes FR-029 structural | Asking the model to self-check inherits the error class it is meant to catch |
