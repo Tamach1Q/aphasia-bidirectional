@@ -69,15 +69,40 @@ test('app.js reaches the session only through intake', () => {
   assert.match(src, /intake\.submitTurn\s*\(/);
 });
 
-test('interim text also goes through the single door, not straight to the strip', () => {
-  const src = code(path.join(APP, 'app.js'));
-  // The recognition handler must hand interim text to intake; only the intake listener
-  // may paint the transcript strip.
-  assert.match(src, /intake\.submitInterim\s*\(/, 'ASR interim must go through intake');
-  assert.match(src, /intake\.onInterim\s*\(/, 'the strip must be painted from the intake listener');
+test('interim text goes through the single door, and only a listener paints the strip', () => {
+  // The recognition handler now lives in capture/asr.js. The invariant is unchanged:
+  // interim reaches the strip only by way of intake.
+  const asrSrc = code(path.join(APP, 'capture/asr.js'));
+  const appSrc = code(path.join(APP, 'app.js'));
+  assert.match(asrSrc, /intake\.submitInterim\s*\(/, 'ASR interim must go through intake');
+  assert.match(appSrc, /intake\.onInterim\s*\(/, 'the strip must be painted from the intake listener');
+});
 
-  const inHandler = /isFinal[\s\S]{0,400}?setPartnerTranscript\s*\(\s*interim/.test(src);
-  assert.equal(inHandler, false, 'the recognition handler must not paint the strip directly');
+test('the capture layer touches no DOM — which is why it is testable at all', () => {
+  // Stronger than the rule it replaces. If a capture module could paint, it could paint
+  // from inside a recognition handler, and the single-door property would be bypassable
+  // without any call to session.appendTurn showing up.
+  for (const rel of ['capture/asr.js', 'capture/intake.js', 'capture/inject.js']) {
+    const src = code(path.join(APP, rel));
+    for (const forbidden of ['document.', 'setPartnerTranscript', 'innerHTML', 'getElementById']) {
+      assert.equal(
+        src.includes(forbidden), false,
+        `${rel} references ${forbidden}; capture must report through callbacks, not draw`,
+      );
+    }
+  }
+});
+
+test('asr.js never fabricates a transcript when recognition is unavailable', () => {
+  // The superseded implementation showed an invented partner utterance here. Under the
+  // new model that text would become a Turn, enter the context store, and go on to feed
+  // hypothesis generation — words nobody said, cited as evidence.
+  const src = code(path.join(APP, 'capture/asr.js'));
+  assert.match(src, /reason:\s*'unavailable'/, 'unavailability must be reported, not papered over');
+  assert.equal(
+    /submitTurn\s*\(\s*\{[^}]*text:\s*['"][^'"]/.test(src), false,
+    'no literal text may be submitted as a turn',
+  );
 });
 
 test('no consumer branches on turn source (FR-043)', () => {

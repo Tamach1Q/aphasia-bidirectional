@@ -2,6 +2,7 @@ import * as sessionStore from './core/session.js';
 import * as personalContext from './core/personal-context.js';
 import * as inject from './capture/inject.js';
 import * as intake from './capture/intake.js';
+import * as asr from './capture/asr.js';
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -27,6 +28,7 @@ import * as intake from './capture/intake.js';
   // Interim recognition output goes through the same door and reaches the transcript
   // strip only — never a Turn, never the settled main area (FR-002, FR-010).
   intake.onInterim((text) => setPartnerTranscript(text));
+  intake.onTurn((turn) => { if (turn.speaker === 'partner') showPartnerResult(turn.text); });
   // T034: injection is reachable only behind ?inject=1, never in a participant session.
   // Exposed on window so a researcher (or the browser test page) can drive it from the
   // console without a microphone.
@@ -114,7 +116,7 @@ import * as intake from './capture/intake.js';
       });
     }
   }
-  function showPartnerResult(text) { const started = performance.now(); recordTurn('partner', text); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
+  function showPartnerResult(text) { const started = performance.now(); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
   function showDontUnderstand() {
     setMain(`<div class="dont-understand-view"><p class="eyebrow">わかりません</p><h2>もう一度、聞いてみましょう。</h2><div class="flow-actions"><button class="choice long-choice" id="reListenButton" type="button">${icon('mic')} 相手にもう一度話してもらう</button><button class="choice" id="goExpressiveButton" type="button">${icon('mic')} 自分から伝える</button></div></div>`);
     $('reListenButton').addEventListener('click', beginListening);
@@ -124,47 +126,32 @@ import * as intake from './capture/intake.js';
   }
 
   // ---- conversation listening (background, always reachable) ----
-  let partnerRecognition; let partnerGeneration = 0;
-  function stopPartnerRecognition() {
-    partnerGeneration += 1;
-    if (partnerRecognition) {
-      partnerRecognition.onresult = null;
-      partnerRecognition.onerror = null;
-      partnerRecognition.onend = null;
-      try { partnerRecognition.stop(); } catch (_) {}
-      partnerRecognition = null;
-    }
-  }
+  // Recognition itself lives in capture/asr.js; this is wiring only.
+  function stopPartnerRecognition() { asr.stopPartner(); }
   function beginListening() {
-    if (state.partnerSessionActive && state.partnerMicActive && partnerRecognition) return;
+    if (asr.isPartnerRunning()) return;
     if (!sessionStore.isActive()) sessionStore.startSession(config002);
     setSession(true, true); setStatus('相手の話を聞いています', true); setPartnerTranscript('聞いています…');
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) { setStatus('音声認識がないため、デモの相手のことばを表示します。'); showPartnerResult('金曜日の午後か、月曜日の午前はどうですか？'); return; }
-    stopPartnerRecognition();
-    const generation = ++partnerGeneration;
-    partnerRecognition = new Recognition(); partnerRecognition.lang = 'ja-JP'; partnerRecognition.continuous = true; partnerRecognition.interimResults = true;
-    let asrStarted = performance.now();
-    partnerRecognition.onresult = (event) => { if (generation !== partnerGeneration) return; let finalText = ''; let interim = ''; for (let i=event.resultIndex; i<event.results.length; i += 1) { const line = event.results[i][0].transcript; if (event.results[i].isFinal) finalText += line; else interim += line; } if (interim) intake.submitInterim(interim, 'partner'); if (finalText) { logLatency('asr: partner transcription', asrStarted, finalText); showPartnerResult(finalText); asrStarted = performance.now(); } };
-    partnerRecognition.onerror = (event) => { if (generation !== partnerGeneration) return; console.warn('partner recognition error', event.error); setStatus(friendlyRecognitionError(event.error)); };
-    partnerRecognition.onend = () => { if (generation !== partnerGeneration) return; if (state.partnerSessionActive && state.partnerMicActive) { try { partnerRecognition.start(); } catch (_) {} } };
-    try { partnerRecognition.start(); } catch (_) { setStatus('音声認識を開始できませんでした。'); }
+    const { started, reason } = asr.startPartner({
+      enabled: config002.ai !== 'off',
+      onError: (message) => setStatus(message),
+      onLatency: logLatency,
+    });
+    if (started) return;
+    // Never fabricate a partner utterance. Inventing one would put words nobody said
+    // into the context store, where they would go on to feed hypothesis generation.
+    setSession(true, false);
+    setPartnerTranscript('');
+    setStatus(reason === 'ai-off'
+      ? '音声は使いません。文字で入力できます。'
+      : 'この端末では音声を聞き取れません。文字で入力できます。');
   }
   function stopListening() { sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); setPartnerTranscript(''); setStatus('聞くのを止めました。'); }
 
   // ---- CAPTURING_USER ----
   function renderCapturing() { setMain('<div class="capturing-view"><span class="rec-dot" aria-hidden="true"></span><p>あなたのことばを聞いています…</p><p class="small-note" id="capturingPartial"></p><p class="small-note">話し終わったら、下のボタンを押してください。</p></div>'); setBottomBar(true); }
 
-  let expressiveRecognition; let expressivePartial = ''; let expressiveGeneration = 0;
-  function stopExpressiveRecognition() {
-    expressiveGeneration += 1;
-    if (expressiveRecognition) {
-      expressiveRecognition.onresult = null;
-      expressiveRecognition.onerror = null;
-      try { expressiveRecognition.stop(); } catch (_) {}
-      expressiveRecognition = null;
-    }
-  }
+  function stopExpressiveRecognition() { asr.stopExpressiveRecognition(); }
   function showExpressiveRecovery(message) {
     state.expressive = false;
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
@@ -173,25 +160,34 @@ import * as intake from './capture/intake.js';
   }
   function startExpressive() {
     pausePartnerListening();
-    state.expressive = true; expressivePartial = '';
-    const generation = ++expressiveGeneration;
+    state.expressive = true;
     $('speakButton').classList.add('recording'); $('speakLabel').textContent = '終わる';
     setStatus('あなたのことばを聞いています', true);
     renderCapturing();
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Recognition) { showExpressiveRecovery('音声認識が使えません。文字で入力するか、もう一度話してください。'); return; }
-    expressiveRecognition = new Recognition(); expressiveRecognition.lang = 'ja-JP'; expressiveRecognition.continuous = false; expressiveRecognition.interimResults = true;
-    const asrStarted = performance.now(); expressiveRecognition.onresult = (event) => { if (generation !== expressiveGeneration || !state.expressive) return; const text = event.results[0][0].transcript; expressivePartial = text; const partialEl = $('capturingPartial'); if (partialEl) partialEl.textContent = text; if (event.results[0].isFinal) { logLatency('asr: expressive fragment', asrStarted, text); finishExpressive(text, generation); } };
-    expressiveRecognition.onerror = (event) => { if (generation !== expressiveGeneration) return; console.warn('expressive recognition error', event.error); stopExpressiveRecognition(); showExpressiveRecovery(`${friendlyRecognitionError(event.error)} 文字で入力するか、もう一度話してください。`); };
-    try { expressiveRecognition.start(); } catch (_) { stopExpressiveRecognition(); showExpressiveRecovery('音声認識を開始できません。文字で入力するか、もう一度話してください。'); }
+    const { started, reason } = asr.startExpressive({
+      enabled: config002.ai !== 'off',
+      onPartial: (text) => { const el = $('capturingPartial'); if (el) el.textContent = text; },
+      onFinal: (fragment) => {
+        state.expressive = false;
+        $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
+        renderFragmentForm(fragment, false);
+        setStatus('ことばを確認して、進んでください。');
+      },
+      onError: (message) => showExpressiveRecovery(`${message} 文字で入力するか、もう一度話してください。`),
+      onLatency: logLatency,
+    });
+    if (!started) {
+      showExpressiveRecovery(reason === 'ai-off'
+        ? '音声は使いません。文字で入力してください。'
+        : 'この端末では音声を聞き取れません。文字で入力してください。');
+    }
   }
-  function finishExpressive(text, generation = expressiveGeneration) {
-    if (!state.expressive || generation !== expressiveGeneration) return; state.expressive = false;
-    stopExpressiveRecognition();
+  function finishExpressive(text) {
+    if (!state.expressive) return;
+    state.expressive = false;
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
-    const fragment = (text || expressivePartial || '').trim();
-    recordTurn('person', fragment, 'asr');
-    renderFragmentForm(fragment, false);
+    const turn = asr.finishExpressive(text ?? asr.getExpressivePartial());
+    renderFragmentForm(turn ? turn.text : (text || ''), false);
     setStatus('ことばを確認して、進んでください。');
   }
 
