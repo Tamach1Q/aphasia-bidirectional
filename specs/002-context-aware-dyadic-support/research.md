@@ -333,30 +333,48 @@ introduces a latency/completeness trade-off that must then be measured, not assu
 
 **Provisional decision**: gate on the presence of any signal, not on a tuned score.
 
-| Signal | Provisional rule |
+| Signal | Rule as implemented (`app/pipelines/gate.js`) |
 |---|---|
-| Length | over ~40 Japanese characters |
-| Instructions | more than one imperative or request |
-| Condition | contains もし / 〜たら / 〜ば / 〜場合 / ただし / でなければ |
-| Embedded question | a question inside other material |
-| Entities | two or more distinct times, numbers, or places |
+| Length | over 40 Japanese characters |
+| Instructions | two or more imperatives or requests |
+| Condition | もし / 〜たら / 〜れば / 〜なら / 〜場合 / ただし / でなければ / ときは **and the contrastive 〜ですが / 〜ますが / けれど / 一方で** |
+| Embedded question | a question mark with more than 12 characters of other material |
+| Entities | **two or more of the SAME KIND** — two times, two numbers, or two places |
+
+#### Two departures from the first draft, both forced by the fixtures
+
+**Entities are counted per kind, not in total.** Counting any two entities gated in
+「明日、病院行く？」 — a day and a place — which is an ordinary question nobody needs help
+with. What is actually hard is holding **alternatives**: two candidate appointments, two
+amounts, where the person has to keep both and choose. One time plus one place is a single
+fact. The signal now takes the largest same-kind group.
+
+**Contrastive markers are treated as conditions.** See the resolved note below.
 
 Deliberately biased toward **not** simplifying: an unnecessary simplification replaces the main area
 and competes for attention, while a missed one is recoverable with `[短く]` (FR-009).
 
-Calibrate in Stage 5 against the fixtures. `f01` must gate out; `f02` and `f03` must gate in.
+**Status: the gate agrees with all four fixture annotations** (`tests/unit/gate.test.js`), and was
+verified end to end against the live model — `f01` gates out in 1 ms with zero requests, `f02` and
+`f04` reach the model and return in ~1.2–1.7 s.
 
-#### Open: contrastive and exception markers
+**OQ-2 is not closed by that.** Four synthetic fixtures are what the thresholds were tuned
+*against*, so agreement with them is close to circular. What OQ-2 actually asks for is calibration
+against **recorded partner utterances**, which the project does not yet have. T069 remains open.
+
+#### RESOLVED 2026-09-25: contrastive and exception markers are gate signals
 
 `f04` ("お風呂は入っていただいて大丈夫ですが、今日は薬を飲まないでください") is annotated
 `gate: "pass"`, but the provisional signals above may not fire on it: it is not especially long, has
 no もし-conditional, and carries only one number-free instruction pair. What makes it hard is the
 **contrast** — a permission and a prohibition joined by 〜ですが.
 
-Do not weaken the fixture to match the gate. Use the mismatch as the material for deciding in
-Stage 5 whether contrastive and exception markers (〜が / 〜けれど / ただし / 一方で) belong in the
-signal set. The stake is concrete: an utterance whose two halves point opposite ways is exactly the
-kind a person may take as a single instruction, and it is the case where dropping half inverts a
+The fixture was not weakened to match the gate. Contrastive and exception markers
+(〜ですが / 〜ますが / けれど / ただし / 一方で) were **added to the signal set** instead, and `f04`
+now gates in on exactly that signal.
+
+The stake is concrete: an utterance whose two halves point opposite ways is exactly the kind a
+person may take as a single instruction, and it is the case where dropping half inverts a
 medication decision.
 
 ---

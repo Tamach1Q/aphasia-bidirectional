@@ -151,16 +151,19 @@ settle, never silently rewrite) through `app/capture/inject.js` with no micropho
 
 ### Tests for User Story 1
 
-- [ ] T057 [P] [US1] Write `tests/unit/gate.test.js` — `f01` gates out; `f02` and `f03` gate in; each gate signal is independently triggerable
-- [ ] T058 [P] [US1] Write `tests/unit/chunker.test.js` — chunk boundary rule per research.md §4; a chunk once settled is never re-emitted
-- [ ] T059 [US1] Write `tests/browser/receptive.test.html` — gated-out utterance produces **zero fetch calls** (assert call count); settled content is never silently replaced; a revision is marked as a change (FR-010)
+- [x] T057 [P] [US1] Write `tests/unit/gate.test.js` — `f01` gates out; `f02` and `f03` gate in; each gate signal is independently triggerable
+- [x] T058 [P] [US1] Write `tests/unit/chunker.test.js` — chunk boundary rule per research.md §4; a chunk once settled is never re-emitted
+- [x] T059 [US1] Write `tests/unit/receptive.test.js` — gated-out utterance produces **zero fetch calls** (asserts the call COUNT via an injectable transport, not merely the absence of output); a re-emitted growing turn is marked as revising its predecessor (FR-010)
+  - **Changed from the planned `tests/browser/receptive.test.html`.** `app/pipelines/receptive.js` turned out DOM-free — it takes a turn and returns a result — so the pipeline half needs no document and is cheaper and more precise to assert in node. What genuinely needs a browser is the *rendered* behaviour, which did not exist when this was written; that half is now T059a, after the renderer that owns it.
+- [ ] T059a [US1] Write `tests/browser/receptive.test.html` — the RENDERED half of FR-010: settled content in the main area is never silently replaced, a revision is visibly marked, and interim text reaches only the transcript strip. Depends on T064/T065; drive it through `app/capture/inject.js`
 
 ### Implementation for User Story 1
 
-- [ ] T060 [P] [US1] Implement `app/pipelines/gate.js` with the provisional thresholds from research.md §5 — length, multiple instructions, conditional markers, embedded question, ≥2 entities
-- [ ] T061 [P] [US1] Implement `app/pipelines/chunker.js` per research.md §4 (one ASR `isFinal` = one chunk, provisional)
-- [ ] T062 [US1] Implement `app/pipelines/receptive.js` — gate → simplify → safety → settle; **the gate MUST run before any fetch** (FR-008)
-- [ ] T063 [US1] Add `op: "simplify"` to `worker/index.js` per contracts/worker-api.md §"simplify", using `worker/prompts/simplify.txt` and the model chosen in T023
+- [x] T060 [P] [US1] Implement `app/pipelines/gate.js` — length, multiple instructions, conditional **and contrastive** markers, embedded question, and **≥2 entities of the SAME KIND**
+  - Two departures from the planned thresholds, both forced by the fixtures. Counting entities of *any* kind gated in 「明日、病院行く？」 (a day and a place), an ordinary question: what is hard is holding ALTERNATIVES, so the signal now counts the largest same-kind group. Contrastive markers (〜ですが / ただし / 一方で) were added because `f04` is short, has no conditional, and carries one instruction pair — what makes it hard is a permission and a prohibition in one utterance, the shape where dropping half inverts a medication decision. This resolves the question left open in research.md §5.
+- [x] T061 [P] [US1] Implement `app/pipelines/chunker.js` per research.md §4 (one ASR `isFinal` = one chunk, provisional)
+- [x] T062 [US1] Implement `app/pipelines/receptive.js` — gate → simplify → safety → settle; **the gate MUST run before any fetch** (FR-008)
+- [x] T063 [US1] Add `op: "simplify"` to `worker/index.js` per contracts/worker-api.md §"simplify", using `worker/prompts/simplify.txt` and the model chosen in T023
 - [ ] T064 [US1] Implement the settled-region renderer in `app/views/person.js` — settled chunks only; interim text goes exclusively to the transcript strip (FR-010, §A3.2)
 - [ ] T065 [US1] Implement revision marking in `app/views/person.js` — when a later chunk revises settled content, mark the change rather than swapping silently
 - [ ] T066 [US1] Wire `[短く]` in `app/views/person.js` to force simplification of the most recent partner turn via `app/pipelines/receptive.js`, bypassing the gate result (FR-009)
