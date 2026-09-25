@@ -327,9 +327,8 @@ function label(text, className) {
 // ---------------------------------------------------------------- support requests
 
 /**
- * §14's support-request row. Only `[短く]` exists at this stage; もう一回 / ゆっくり /
- * ちがう land in T095 and MUST stay four distinguishable controls, never one generic
- * "help" button (FR-031).
+ * §14 support-request row. Four distinguishable repairs, never one generic "help"
+ * button (FR-031). Each pairs local icon + text (FR-036).
  */
 export const SUPPORT_REQUESTS = Object.freeze([
   Object.freeze({ kind: 'repeat', label: 'もう一回', message: 'もう一回お願いします。' }),
@@ -368,7 +367,12 @@ function renderSupport() {
     button.type = 'button';
     button.className = 'support-request';
     button.id = request.kind === 'short' ? 'shortenButton' : 'support-' + request.kind;
-    button.textContent = request.label;
+    const icon = document.createElement('img');
+    icon.className = 'support-icon';
+    icon.src = 'icons/' + request.kind + '.svg';
+    icon.alt = '';
+    icon.setAttribute('aria-hidden', 'true');
+    button.append(icon, document.createTextNode(request.label));
     button.addEventListener('click', () => dispatchSupportRequest(request.kind));
     els.support.appendChild(button);
   }
