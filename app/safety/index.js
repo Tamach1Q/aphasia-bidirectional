@@ -27,6 +27,7 @@ import * as number from './checks/number.js';
 import * as action from './checks/action.js';
 import * as medication from './checks/medication.js';
 import * as consent from './checks/consent.js';
+import { logSafetySuppressions } from '../core/telemetry.js';
 
 const CHECKS = [polarity, person, time, number, action, medication, consent];
 
@@ -117,5 +118,6 @@ export function filter(candidates, sourceText, context = {}) {
     if (result.ok) kept.push(c);
     else suppressed.push({ candidate: c, violations: result.violations });
   }
+  logSafetySuppressions(suppressed, context.mode);
   return { kept, suppressed, allSuppressed: Boolean(candidates?.length) && kept.length === 0 };
 }
