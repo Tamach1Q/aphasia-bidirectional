@@ -7,6 +7,11 @@
 // on the small { text } -> { choices } | { error } contract below, not on this being a
 // Cloudflare Worker or on Gemini specifically.
 
+// Prompts are imported as Text modules (see wrangler.toml [[rules]]) rather than pasted
+// in here. worker/prompts/*.txt stays the single source of truth, so a prompt cannot drift
+// from the version the tests pin and the evaluation harness measured.
+import SIMPLIFY_PROMPT from './prompts/simplify.txt';
+
 const ALLOWED_ORIGINS = new Set([
   'https://tamach1q.github.io',
 ]);
@@ -43,6 +48,12 @@ export default {
 
     let body;
     try { body = await request.json(); } catch (_) { return json({ error: 'invalid JSON body' }, 400, headers); }
+
+    // 002: op-discriminated requests. A body WITHOUT `op` is the superseded
+    // { text } -> { choices } contract, still served for the deployed app until T078
+    // replaces the expressive half. Do not remove it before then.
+    if (body?.op === 'simplify') return handleSimplify(body, env, headers);
+
     const text = String(body?.text || '').trim().slice(0, 500);
     if (!text) return json({ error: 'text is required' }, 400, headers);
 
@@ -97,3 +108,78 @@ export default {
     return json({ error: lastError || '不明なエラー' }, 502, headers);
   },
 };
+
+// ---------------------------------------------------------------- 002: op=simplify
+
+// Receptive direction. The client only calls this AFTER its local gate has passed
+// (FR-008), so an ordinary utterance never reaches here and costs nothing.
+//
+// The prompt lives in worker/prompts/simplify.txt and is inlined at deploy time; it names
+// every element that must survive and states that meaning outranks brevity, because
+// over-reduction is the failure a fluent short output hides.
+const SIMPLIFY_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    meaning: { type: 'STRING' },
+    structure: { type: 'ARRAY', items: { type: 'STRING' } },
+    options: { type: 'ARRAY', items: { type: 'STRING' }, maxItems: 3 },
+  },
+  required: ['meaning'],
+};
+
+async function handleSimplify(body, env, headers) {
+  const text = String(body?.text || '').trim().slice(0, 1000);
+  if (!text) return json({ error: 'text is required' }, 400, headers);
+  const level = ['short', 'standard', 'detailed'].includes(body?.level) ? body.level : 'standard';
+
+  const prompt = SIMPLIFY_PROMPT.replace('{{TEXT}}', text).replace('{{LEVEL}}', level);
+  const model = env.SIMPLIFY_MODEL || env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+
+  const result = await callGemini({ model, prompt, schema: SIMPLIFY_SCHEMA, env });
+  if (result.error) return json({ error: result.error }, 502, headers);
+
+  return json({
+    op: 'simplify',
+    meaning: String(result.data.meaning || ''),
+    structure: Array.isArray(result.data.structure) ? result.data.structure.map(String) : [],
+    options: Array.isArray(result.data.options) ? result.data.options.slice(0, 3).map(String) : [],
+  }, 200, headers);
+}
+
+/** Shared model call with the same transient-error retry the legacy path uses. */
+async function callGemini({ model, prompt, schema, env }) {
+  const attempts = [0, 600, 1800];
+  let lastError = null;
+  for (const delay of attempts) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json', responseSchema: schema },
+          }),
+        },
+      );
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error?.message) detail += `: ${errBody.error.message}`;
+        } catch (_) {}
+        lastError = detail;
+        if (res.status === 503 || res.status === 429) continue;
+        return { error: detail };
+      }
+      const payload = await res.json();
+      const raw = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+      return { data: JSON.parse(raw) };
+    } catch (err) {
+      lastError = err.message || String(err);
+    }
+  }
+  return { error: lastError || '不明なエラー' };
+}

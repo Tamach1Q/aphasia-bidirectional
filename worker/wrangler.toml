@@ -20,3 +20,11 @@ compatibility_date = "2026-09-18"
 GEMINI_MODEL = "gemini-3.6-flash"      # legacy path only — removed in T063/T078
 SIMPLIFY_MODEL = "gemini-3.5-flash-lite"
 HYPOTHESES_MODEL = "gemini-3.6-flash"
+
+# Prompts are imported as Text modules so worker/prompts/*.txt remains the single source of
+# truth. Inlining them into index.js would let the deployed prompt drift from the one the
+# tests pin and the Stage 0 evaluation actually measured.
+[[rules]]
+type = "Text"
+globs = ["prompts/*.txt"]
+fallthrough = true

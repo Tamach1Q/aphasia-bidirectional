@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { stripComments } from './_source.js';
 
 const APP = fileURLToPath(new URL('../../app/', import.meta.url));
 
@@ -30,9 +31,7 @@ function jsFiles(dir = APP, acc = []) {
 
 /** Strip comments so a mention in prose is not mistaken for a call. */
 function code(file) {
-  return readFileSync(file, 'utf8')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '');
+  return stripComments(readFileSync(file, 'utf8'), file);
 }
 
 const rel = (f) => path.relative(APP, f);

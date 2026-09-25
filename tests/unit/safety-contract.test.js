@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { stripComments } from './_source.js';
 import * as safety from '../../app/safety/index.js';
 
 const SAFETY_DIR = fileURLToPath(new URL('../../app/safety/', import.meta.url));
@@ -19,7 +20,7 @@ function sources() {
   return files.map((f) => [path.relative(SAFETY_DIR, f), readFileSync(f, 'utf8')]);
 }
 
-const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const strip = (s) => stripComments(s, 'safety source');
 
 test('all seven checks are registered (FR-027)', () => {
   assert.deepEqual([...safety.CHECK_NAMES].sort(), [

@@ -2,10 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { stripComments } from './_source.js';
 import * as pc from '../../app/core/personal-context.js';
 
 const SRC = readFileSync(new URL('../../app/core/personal-context.js', import.meta.url), 'utf8');
-const CODE = SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const CODE = stripComments(SRC, 'personal-context.js');
 
 const SAMPLE = JSON.parse(
   readFileSync(new URL('../../app/context/sample-01.json', import.meta.url), 'utf8'),

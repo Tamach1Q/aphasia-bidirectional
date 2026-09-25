@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { stripComments } from './_source.js';
 import * as inject from '../../app/capture/inject.js';
 import * as intake from '../../app/capture/intake.js';
 import * as session from '../../app/core/session.js';
@@ -58,7 +59,7 @@ test('no pipeline may branch on source — it is research metadata only', () => 
   const consumers = ['app/capture/intake.js', 'app/core/session.js'];
   for (const rel of consumers) {
     const src = readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8');
-    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const code = stripComments(src, rel);
     assert.equal(
       /['"]injected['"]\s*(===|!==|==|!=)/.test(code), false,
       `${rel} compares against 'injected'`,
