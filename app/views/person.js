@@ -366,7 +366,7 @@ function renderSupport() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'support-request';
-    button.id = 'support-' + request.kind;
+    button.id = request.kind === 'short' ? 'shortenButton' : 'support-' + request.kind;
     button.textContent = request.label;
     button.addEventListener('click', () => dispatchSupportRequest(request.kind));
     els.support.appendChild(button);
