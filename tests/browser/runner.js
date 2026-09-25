@@ -9,6 +9,7 @@ import * as inject from '../../app/capture/inject.js';
 
 const SUITES = [
   './receptive.test.js',   // T059a — the rendered half of FR-010
+  './non-intervention.test.js', // T073 — writing hypotheses is visually silent
 ];
 
 export async function runAll(resultsEl, summaryEl) {
