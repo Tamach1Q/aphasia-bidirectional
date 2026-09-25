@@ -145,6 +145,38 @@ export function register(test, inject) {
     assertEqual(ui.chunks()[0].querySelector('.meaning').textContent, firstText, 'its text is unchanged');
   });
 
+  test('concurrent simplifications settle in partner-turn order, not response order (FR-010)', async () => {
+    const ui = mountFresh();
+    const pending = [];
+    receptive.setTransport((body) => new Promise((resolve) => {
+      pending.push({ body, resolve });
+    }));
+
+    const first = person.handlePartnerTurn({
+      id: 't1',
+      text: 'もし熱が出たら、すぐに電話をしてください。',
+    });
+    const second = person.handlePartnerTurn({
+      id: 't2',
+      text: 'もし雨が降ったら、タクシーを使ってください。',
+    });
+
+    assertEqual(pending.length, 2, 'both Worker requests are sent without serializing network latency');
+
+    pending[1].resolve({ meaning: 'あめなら タクシー' });
+    await second;
+    assertEqual(ui.chunks().length, 0, 'turn 2 waits only at the display-commit boundary');
+
+    pending[0].resolve({ meaning: 'ねつが でたら でんわ' });
+    await first;
+
+    assertEqual(
+      ui.texts(),
+      ['ねつが でたら でんわ', 'あめなら タクシー'],
+      'settled content follows conversation order even when responses arrive backwards',
+    );
+  });
+
   test('settled content survives the expressive flow replacing the main area (FR-010)', async () => {
     const ui = mountFresh();
     stubTransport({ meaning: 'ねつが でたら でんわ', options: ['わかりました'] });

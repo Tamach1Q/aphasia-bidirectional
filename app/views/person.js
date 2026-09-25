@@ -41,6 +41,10 @@ let lastPersonTurn = null;
 let counter = 0;
 /** Invalidates any async receptive result that was started before reset/session end. */
 let lifecycleGeneration = 0;
+/** Receptive requests may run concurrently, but their settled UI commits stay turn-ordered. */
+let receptiveSequence = 0;
+let nextReceptiveSequence = 1;
+const pendingReceptiveResults = new Map();
 let hooks = {};
 let runtime = { aiEnabled: true, receptiveEnabled: true };
 
@@ -121,6 +125,7 @@ export function setTranscript(text) {
  */
 export async function handlePartnerTurn(turn, options = {}) {
   const generation = lifecycleGeneration;
+  const sequence = ++receptiveSequence;
   lastPartnerTurn = turn;
   renderSupport();
   if (runtime.aiEnabled) setTranscript(turn?.text || '');
@@ -137,17 +142,28 @@ export async function handlePartnerTurn(turn, options = {}) {
     hooks.onLatency('llm: receptive simplification', started, turn?.text);
   }
 
-  if (result.simplified) {
-    settle(result.simplified, result.chunk);
-  } else if (options.force) {
-    // The person ASKED for a shorter version. Silence would read as the request having
-    // done nothing, so say plainly that it did not work — without implying the difficulty
-    // was theirs (FR-032, §2.5).
-    note(result.skipped === 'suppressed'
-      ? '短くしたことばを出せませんでした。上のことばがそのままの内容です。'
-      : '短くできませんでした。もう一度押せます。');
-  }
+  queueReceptiveResult(sequence, result, { force: !!options.force });
   return result;
+}
+
+function queueReceptiveResult(sequence, result, options) {
+  pendingReceptiveResults.set(sequence, { result, options });
+  while (pendingReceptiveResults.has(nextReceptiveSequence)) {
+    const pending = pendingReceptiveResults.get(nextReceptiveSequence);
+    pendingReceptiveResults.delete(nextReceptiveSequence);
+    nextReceptiveSequence += 1;
+
+    if (pending.result.simplified) {
+      settle(pending.result.simplified, pending.result.chunk);
+    } else if (pending.options.force) {
+      // The person ASKED for a shorter version. Silence would read as the request having
+      // done nothing, so say plainly that it did not work — without implying the difficulty
+      // was theirs (FR-032, §2.5).
+      note(pending.result.skipped === 'suppressed'
+        ? '短くしたことばを出せませんでした。上のことばがそのままの内容です。'
+        : '短くできませんでした。もう一度押せます。');
+    }
+  }
 }
 
 /** `[短く]` — force simplification of the most recent partner turn (FR-009). */
@@ -456,6 +472,9 @@ export function showConfirmation() {
 
 export function reset() {
   lifecycleGeneration += 1;
+  receptiveSequence = 0;
+  nextReceptiveSequence = 1;
+  pendingReceptiveResults.clear();
   entries = [];
   nodes.clear();
   if (els) els.settled.replaceChildren();

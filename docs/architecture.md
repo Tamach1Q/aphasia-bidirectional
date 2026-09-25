@@ -306,6 +306,12 @@ internal and is never labelled in the UI.
 
 ---
 
+**Receptive ordering invariant.** Concurrent simplify requests may complete out of order, but
+settled UI commits MUST follow partner-turn order. Requests remain concurrent; only display commit
+is sequenced. Reset/session end clears the pending queue and invalidates late results.
+
+---
+
 ## A4. Expressive pipeline — Person → Partner (§13)
 
 ```text
