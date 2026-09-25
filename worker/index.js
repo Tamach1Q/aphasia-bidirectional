@@ -23,9 +23,19 @@ const ALLOWED_ORIGINS = new Set([
 // chosen for latency on the critical path, hypotheses for restraint and evidence fidelity.
 const GEMINI_MODEL = 'gemini-3.6-flash';
 
+function isAllowedOrigin(origin) {
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'http:' && url.hostname === 'localhost';
+  } catch (_) {
+    return false;
+  }
+}
+
 function corsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  const allowed = ALLOWED_ORIGINS.has(origin) || origin.startsWith('http://localhost');
+  const allowed = isAllowedOrigin(origin);
   return {
     'Access-Control-Allow-Origin': allowed ? origin : 'null',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',

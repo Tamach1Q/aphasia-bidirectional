@@ -64,8 +64,15 @@ test('the API key is read from the environment and never logged', () => {
     'the key must never reach a log line');
 });
 
-test('CORS stays restricted to an allowlist', () => {
+test('CORS stays restricted to an allowlist and exact localhost hostname', () => {
   assert.match(code, /ALLOWED_ORIGINS/);
+  assert.match(code, /new URL\(origin\)/, 'localhost development origins must be parsed as URLs');
+  assert.match(code, /url\.protocol === 'http:'\s*&&\s*url\.hostname === 'localhost'/);
+  assert.doesNotMatch(
+    code,
+    /origin\.startsWith\(['"]http:\/\/localhost/,
+    'prefix matching would also allow hosts such as localhost.attacker.example',
+  );
   assert.match(code, /'Access-Control-Allow-Origin'/);
   assert.match(code, /Origin not allowed/);
 });

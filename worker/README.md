@@ -89,5 +89,12 @@ deploy in `agent/tasks/002-context-aware-dyadic-support/state.json`.
 
 ## Origin allowlist
 
-`ALLOWED_ORIGINS` in `index.js` restricts which sites can call this Worker via CORS. Update it if
-the app's Pages URL changes (custom domain, fork, etc.).
+`ALLOWED_ORIGINS` in `index.js` restricts browser cross-origin access. Local development accepts
+only an `http:` origin whose parsed hostname is exactly `localhost` (any port); hostname-prefix
+matching is intentionally not used.
+
+**CORS is not authentication.** A non-browser HTTP client can supply its own `Origin` header, so
+the allowlist does not protect model quota from a determined caller who knows the Worker URL. That
+is acceptable only for this researcher-assisted Phase 1/demo-scoped backend. A longer-lived public
+deployment needs server-side abuse controls such as rate limiting and/or authentication; those are
+not added to this prototype merely as a CORS cleanup.
