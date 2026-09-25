@@ -17,11 +17,11 @@
   ],
   "stage_in_progress": "9 (polish and device/research closure)",
   "next_task": "T109",
-  "tasks_complete": 116,
+  "tasks_complete": 117,
   "tasks_total": 124,
-  "unit_tests_passing": 218,
-  "browser_tests": "25/25 — GitHub Actions Test app run 36088419901",
-  "last_verified_commit": "529cb0f2cd5d672e35ac0cb65fe2c62579eebcd3 (218 unit, 25/25 browser)",
+  "unit_tests_passing": 220,
+  "browser_tests": "25/25 — GitHub Actions Test app run 36089271361",
+  "last_verified_commit": "f9d30458e93013c55796f6d8d07f39e67bd2ec06 (220 unit, 25/25 browser)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -51,7 +51,8 @@
     "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values.",
     "T106-T108 verified complete on main: shell/support controls use local SVGs only; arbitrary model-authored meaning options intentionally receive no generic pictogram. CI run 36088419901 is green.",
     "T112/T113/T115 complete: architecture now records privacy-safe research telemetry; root README documents repo-root development vs app-only deployment; every committed app/context and app/fixtures data file was reviewed and is explicitly synthetic.",
-    "T114 complete: app/app.js is bootstrap-only; active orchestration moved without behavior change to app/runtime.js, with a source-level invariant test."
+    "T114 complete: app/app.js is bootstrap-only; active orchestration moved without behavior change to app/runtime.js, with a source-level invariant test.",
+    "T116 complete: all twelve quickstart silent-regression checks are mapped to automated coverage; CI run 36089271361 passed 220 unit and 25/25 browser. Manual device checks remain separate."
   ],
   "updated": "2026-09-25"
 }

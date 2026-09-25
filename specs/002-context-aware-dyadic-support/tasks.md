@@ -299,7 +299,7 @@ states the meaning is not yet clear, and a partner-side action is offered.
 - [x] T113 [P] Update `README` (or create one) documenting the two serving modes — repo root for development, `app/` for deployment
 - [x] T114 Delete any remaining dead code from `app/app.js`; confirm `app.js` contains wiring only, no logic
 - [x] T115 Verify `app/context/` and `app/fixtures/` contain no real participant data (FR-005)
-- [ ] T116 Run the full quickstart.md validation, including all twelve "checks that matter most"
+- [x] T116 Run the full quickstart.md validation, including all twelve "checks that matter most"
 - [ ] T117 Close OQ-3 (participant consent text covering the expanded off-device scope) — **blocks the user test, not the build**
 - [ ] T118 Close OQ-7 (latency ceiling and over-ceiling behaviour) using the T025 measurements — **blocks the user test, not the build**
 - [ ] T119 Resolve OQ-4 (partner view presentation and device handover) and OQ-5 (whether uncertainty is displayed at all) from Stage 7 observations; record in `research.md`

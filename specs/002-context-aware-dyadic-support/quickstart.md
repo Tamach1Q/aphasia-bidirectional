@@ -61,7 +61,9 @@ node --test tests/unit/*.test.js   # pure modules: safety, evidence, gate, chunk
 ```
 
 The browser page runs every suite listed in `tests/browser/runner.js` on load and prints
-`N/M passed`. Suites so far: `receptive.test.js` (the rendered half of FR-010).
+`N/M passed`. Registered suites: `receptive.test.js`, `non-intervention.test.js`,
+`partner.test.js`, `confirmation.test.js`, `unknown-path.test.js`, `baseline.test.js`, and
+`context-conditions.test.js`.
 
 > **Reload with the cache bypassed** (⇧⌘R, or a fresh port) after editing a module the suites
 > import. Chrome will otherwise serve the previous module graph, and the failure looks like a
@@ -93,6 +95,34 @@ around, only by a participant.
 
 Check 1 is the one most likely to regress later, because every regression of it looks like a
 helpful improvement.
+
+
+### T116 validation record — 2026-09-25
+
+GitHub Actions run `36089271361` at commit `f9d30458` completed green:
+
+- Node unit suite: **220/220**, 0 failures
+- Browser suite: **25/25**, 0 failures
+- No microphone is used by the browser suite; all conversation inputs go through the injected path
+
+The twelve silent-regression checks above are covered as follows:
+
+| # | Automated coverage |
+|---|---|
+| 1 | `tests/browser/non-intervention.test.js` |
+| 2 | `tests/unit/import-invariant.test.js` |
+| 3 | `tests/unit/receptive.test.js` + `tests/browser/receptive.test.js` |
+| 4 | `tests/browser/unknown-path.test.js` |
+| 5 | `tests/unit/evidence-verify.test.js` |
+| 6 | `tests/unit/safety-polarity.test.js` + receptive suppression browser case |
+| 7 | `tests/browser/unknown-path.test.js` |
+| 8 | `tests/browser/confirmation.test.js` |
+| 9 | `tests/unit/asr-state.test.js` + `tests/browser/baseline.test.js` |
+| 10 | `tests/browser/context-conditions.test.js` |
+| 11 | `tests/browser/receptive.test.js` |
+| 12 | `tests/unit/session.test.js` + `tests/browser/confirmation.test.js` |
+
+The manual real-device checks in the next section are deliberately **not** claimed by this record.
 
 ## End-to-end scenario — injected, no audio
 
