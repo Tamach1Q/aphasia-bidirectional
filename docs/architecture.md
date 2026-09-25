@@ -517,6 +517,30 @@ Why the subject-swap rule is `restate`-only: a hypothesis is the *person's* mean
 partner, so a subject differing from the question's subject is normal
 (「娘さんが行くんですか？」 → 「私が行きます」).
 
+#### Interpret grounding — OQ-11 resolved 2026-09-25
+
+For `mode: 'interpret'`, `sourceText` is a deterministic projection of the **exact hypotheses
+request body that was sent to the model**. It concatenates textual values from the fields that are
+present in that request: `fragment.text`, each `shortTerm[].text`, each `confirmed[].text`, and
+the string/primitive leaf values of `personalContext` when that field is enabled.
+
+It does **not** read extra live-session context that was omitted by `config.ctx`, and it does not
+serialize ids, object keys, or JSON punctuation into the grounding text. The safety layer therefore
+tests a hypothesis only against information the model could actually have used, without lexical
+checks accidentally matching schema names or ids.
+
+Verified evidence is deliberately **not** the grounding source. Safety runs before evidence
+verification and answers “is this candidate unsafe relative to what the model was given?” Evidence
+verification answers “did this model-authored pointer honestly resolve to the live input?” Making
+Safety depend on verified pointers would conflate those responsibilities and would cause a malformed
+citation to suppress a hypothesis that may still be grounded in the request. Verified evidence is
+still used downstream for partner-visible excerpts and confirmation `basis`.
+
+The expressive pipeline owns this request → grounding projection and passes:
+`safety.filter(candidates, groundingText, { mode: 'interpret', confirmed, personalContext })`.
+This closes OQ-11 without weakening any check: polarity, action, medication, consent and person
+still apply; they simply see the complete input domain they are supposed to judge.
+
 **Architectural constraint: the safety check must not be another call to the model that produced the
 candidate.** A model that inverted a polarity will not reliably notice that it did. Phase 1 uses
 local rule-based checks only, with no second network call. This also keeps the check on the critical

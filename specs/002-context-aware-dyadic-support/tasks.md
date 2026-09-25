@@ -195,16 +195,18 @@ invoke `[ことばのヒント]` and assert the partner view appears with verifi
 
 ### Tests for User Story 2
 
-- [ ] T070 [P] [US2] Write `tests/unit/hint-store.test.js` — writing a hypothesis has no render side effect; state transitions per data-model.md §5; generation counter discards stale responses
-- [ ] T071 [P] [US2] Write `tests/unit/evidence-verify.test.js` — a pointer to a non-existent turn is dropped while the hypothesis SURVIVES; an excerpt absent from the cited turn is dropped; a reference to an evicted turn is unverifiable, not an error
-- [ ] T072 [P] [US2] Write `tests/unit/import-invariant.test.js` — grep over import statements asserting that `getHintSnapshot` is imported **only** by `app/views/partner.js`, and that `app/views/person.js` imports **nothing** from `app/core/hint-store.js`. `app/pipelines/expressive.js` importing the writers is expected and must NOT fail the test (FR-022, data-model.md §5.1)
-- [ ] T073 [US2] Write `tests/browser/non-intervention.test.html` — after hypotheses are generated, assert **zero DOM mutation** and that no indicator/badge/banner element exists anywhere in the document (FR-019)
-- [ ] T074 [US2] Write `tests/browser/confirmation.test.html` — the person's view shows exactly ONE hypothesis with はい/ちがう and never a list (FR-023); only はい writes to `session.confirmed` (FR-024)
+- [x] T070 [P] [US2] Write `tests/unit/hint-store.test.js` — writing a hypothesis has no render side effect; state transitions per data-model.md §5; generation counter discards stale responses
+- [x] T071 [P] [US2] Write `tests/unit/evidence-verify.test.js` — a pointer to a non-existent turn is dropped while the hypothesis SURVIVES; an excerpt absent from the cited turn is dropped; a reference to an evicted turn is unverifiable, not an error
+- [x] T072 [P] [US2] Write `tests/unit/import-invariant.test.js` — grep over import statements asserting that `getHintSnapshot` is imported **only** by `app/views/partner.js`, and that `app/views/person.js` imports **nothing** from `app/core/hint-store.js`. `app/pipelines/expressive.js` importing the writers is expected and must NOT fail the test (FR-022, data-model.md §5.1)
+- [x] T073 [US2] Write `tests/browser/non-intervention.test.html` — after hypotheses are generated, assert **zero DOM mutation** and that no indicator/badge/banner element exists anywhere in the document (FR-019)
+  - Implemented as `tests/browser/non-intervention.test.js`, using the existing single browser harness from T037 rather than introducing a second `.html` runner.
+- [x] T074 [US2] Write `tests/browser/confirmation.test.html` — the person's view shows exactly ONE hypothesis with はい/ちがう and never a list (FR-023); only はい writes to `session.confirmed` (FR-024)
+  - Authored as `tests/browser/confirmation.test.js` against the existing browser harness. It is intentionally not registered until T084/T085 land; it is the red-first acceptance target for that surface, while T073 is already registered and runnable.
 
 ### Implementation for User Story 2
 
-- [ ] T075 [P] [US2] Implement `app/core/hint-store.js` as pure data with no render side effect, exporting writers (`setHypotheses`, `setUnknown`, `clearHints`) and the reader (`getHintSnapshot`) as **separate surfaces** per data-model.md §5.1
-- [ ] T076 [P] [US2] Implement `app/evidence/verify.js` — verify `turn`/`confirmed`/`personalContext` pointers against the live session; drop the pointer, keep the hypothesis (FR-017, data-model.md §7)
+- [x] T075 [P] [US2] Implement `app/core/hint-store.js` as pure data with no render side effect, exporting writers (`setHypotheses`, `setUnknown`, `clearHints`) and the reader (`getHintSnapshot`) as **separate surfaces** per data-model.md §5.1
+- [x] T076 [P] [US2] Implement `app/evidence/verify.js` — verify `turn`/`confirmed`/`personalContext` pointers against the live session; drop the pointer, keep the hypothesis (FR-017, data-model.md §7)
 - [ ] T077 [US2] Implement `app/pipelines/expressive.js` — fragment → hypotheses request → safety → evidence verification → `setHypotheses()` / `setUnknown()`. It imports the writers only, never `getHintSnapshot`. **Nothing renders at any step**
 - [ ] T078 [US2] Add `op: "hypotheses"` to `worker/index.js` per contracts/worker-api.md §"hypotheses", using `worker/prompts/hypotheses.txt` and the model chosen in T023
 - [ ] T079 [US2] Set the `hypotheses` response schema in `worker/index.js` to `minItems: 0, maxItems: 3` and support `result: "unknown"` — the old `minItems: 2` made zero candidates unrepresentable (FR-015)

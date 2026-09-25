@@ -5,23 +5,45 @@
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
   "constitution_min_version": "1.2.0",
-  "phase": "Phase 3 (US-1) complete — receptive direction works end to end from injected fixtures, including the rendered surface",
-  "stages_complete": ["0", "1", "2", "3", "4", "5"],
+  "phase": "Phase 4 (US-2) foundation complete through T076 — hint store and evidence verification landed; OQ-11 resolved before expressive pipeline",
+  "stages_complete": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5"
+  ],
   "stage_in_progress": "6 (expressive)",
-  "next_task": "T070",
-  "tasks_complete": 73,
+  "next_task": "T077",
+  "tasks_complete": 80,
   "tasks_total": 124,
   "unit_tests_passing": 175,
   "browser_tests": "10/10 — tests/browser/receptive.test.js registered in runner.js",
-  "last_verified_commit": "pending commit of Phase 3 part 2",
-  "open_questions": ["OQ-1", "OQ-2", "OQ-3", "OQ-4", "OQ-5", "OQ-7", "OQ-8", "OQ-10", "OQ-11"],
-  "awaiting_device_verification": ["T109", "T110", "T111"],
+  "last_verified_commit": "4b13542 (175 unit, 11/11 browser); T070-T076 added after that and require local/browser rerun",
+  "open_questions": [
+    "OQ-1",
+    "OQ-2",
+    "OQ-3",
+    "OQ-4",
+    "OQ-5",
+    "OQ-7",
+    "OQ-8",
+    "OQ-10"
+  ],
+  "awaiting_device_verification": [
+    "T109",
+    "T110",
+    "T111"
+  ],
   "blockers": [
     "The DEPLOYED Worker predates T063: it answers {op:'simplify'} with the legacy {choices} shape (verified 2026-09-25 from the running app). op=simplify exists in the repository but not in production, so the receptive direction cannot work against the live endpoint until the Worker is redeployed (`wrangler deploy` from the account holding GEMINI_API_KEY). The pipeline degrades correctly meanwhile — the person keeps the raw transcript."
   ],
   "notes": [
     "OQ-1 and OQ-2 were re-examined in T069 and deliberately LEFT OPEN. Values retained; injected fixtures cannot settle either question (one fixture turn is one ASR final by construction, and the gate thresholds were tuned against these same fixtures). Both need a rehearsal with real recognition — T110, T111.",
-    "OQ-10 reopened in substance: the Stage 5 surface produced a new consent-check false-positive class (「いつがいいですか」 suppressed on the いいです inside it). Fixed and tested; research.md §9 records why the earlier 0.0% figure was a property of the sample."
+    "OQ-10 reopened in substance: the Stage 5 surface produced a new consent-check false-positive class (「いつがいいですか」 suppressed on the いいです inside it). Fixed and tested; research.md §9 records why the earlier 0.0% figure was a property of the sample.",
+    "OQ-11 resolved 2026-09-25 before T077: interpret Safety grounds on textual values from the exact hypotheses request body actually sent; evidence verification remains a separate downstream responsibility.",
+    "T070-T076 implemented in a73c781. This connector environment cannot clone/run the repository because direct GitHub DNS is unavailable; do not treat the previous 175/11 counts as verification of the new tests."
   ],
   "updated": "2026-09-25"
 }

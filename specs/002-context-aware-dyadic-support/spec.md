@@ -348,10 +348,8 @@ component they name.
 - **OQ-10** Safety rule calibration and acceptable false-positive rate (§A6.3) — blocks FR-027.
   *Measured 2026-09-24: 43.6% → 0.0% after three design fixes (research.md §9). Small sample;
   re-measure on Stage 5 output.*
-- **OQ-11** Exact grounding source for `interpret` safety (FR-027b) — blocks Stage 6 (T077), not
-  US-1. The calibration harness currently passes `shortTerm + fragment` as the source and hands
-  `confirmed` / `personalContext` separately as context. That is adequate for the checks as written,
-  but a case like confirmed 「今日は薬を飲まない」 + fragment 「それ」 + hypothesis 「今日は薬を
-  飲まない」 would read as *negation added* if `confirmed` is not part of the grounding source.
-  Decide before wiring the real pipeline: either fold the whole request body into the source, or
-  ground on the verified evidence the hypothesis actually cites.
+- **OQ-11 RESOLVED 2026-09-25** Exact grounding source for `interpret` safety (FR-027b):
+  use a deterministic text projection of the exact `op=hypotheses` request fields actually sent —
+  fragment, enabled short-term turns, enabled confirmed context, and enabled personal-context leaf
+  values. Do not ground Safety on verified evidence; citation verification remains a separate later
+  step. See research.md §9a and architecture.md §A6.1.

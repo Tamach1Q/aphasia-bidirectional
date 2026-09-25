@@ -593,6 +593,38 @@ and the re-measurement it needs is over output from a rehearsal rather than a la
 
 ---
 
+## 9a. Interpret-mode grounding (OQ-11) — RESOLVED 2026-09-25
+
+**Decision:** Safety grounds an expressive hypothesis against a deterministic text projection of the
+**exact request body sent to `op=hypotheses`**, not against the fragment alone and not against the
+hypothesis's verified evidence.
+
+The projection contains only textual values the model actually received:
+
+- `fragment.text`
+- `shortTerm[].text` when `ctx` includes session context
+- `confirmed[].text` when `ctx` includes session context
+- string/primitive leaf values from `personalContext` when `ctx=personal`
+
+Ids, field names and JSON punctuation are excluded. Context omitted from the request is excluded too.
+That makes FR-027b testable at the same boundary as FR-040: changing `ctx` changes both the request
+and the Safety grounding domain.
+
+**Why not verified evidence as the Safety source?** Evidence verification happens after Safety and
+has a narrower job: prove that each citation pointer resolves. A model may produce a correctly
+grounded hypothesis with a malformed pointer. FR-017 says that pointer is dropped while the
+hypothesis survives; using verified evidence as Safety grounding would silently turn a citation
+error into hypothesis suppression and mix the two responsibilities.
+
+This also fixes the concrete false-positive that opened OQ-11: confirmed
+「今日は薬を飲まない」 + fragment 「それ」 may legitimately yield
+「今日は薬を飲まない」. Polarity sees the confirmed negation because confirmed text was actually
+sent to the model. The rule itself is not relaxed.
+
+Phase 1 keeps this intentionally small: no evidence-to-safety dependency, no provenance graph, and
+no extra model call. Verified evidence remains valuable downstream for partner-visible quotes and
+for the `basis` carried into confirmed context.
+
 ## 10. Testing approach
 
 **Decision**: `node --test` for pure modules, plus a static browser page driven by the injected
