@@ -73,7 +73,7 @@ export function mount({ settledEl, transcriptEl, supportEl, config = {}, onStatu
   // the suite would have been asserting against its own wiring.
   for (const dispose of unsubscribe) dispose();
   unsubscribe = [
-    intake.onInterim((text) => setTranscript(text)),
+    intake.onInterim((text) => { if (runtime.aiEnabled) setTranscript(text); }),
     intake.onTurn((turn) => {
       if (turn.speaker === 'partner') handlePartnerTurn(turn);
       if (turn.speaker === 'person') {
@@ -120,7 +120,8 @@ export function setTranscript(text) {
 export async function handlePartnerTurn(turn, options = {}) {
   lastPartnerTurn = turn;
   renderSupport();
-  setTranscript(turn?.text || '');
+  if (runtime.aiEnabled) setTranscript(turn?.text || '');
+  else setTranscript('');
 
   const started = typeof performance !== 'undefined' ? performance.now() : 0;
   const result = await receptive.handleTurn(turn, {
@@ -374,7 +375,7 @@ function renderSupport() {
 
   // This neutral action appears after a person turn regardless of generation outcome,
   // so it does not reveal whether hidden hypotheses exist (FR-019).
-  if (lastPersonTurn) {
+  if (lastPersonTurn && runtime.aiEnabled) {
     const hint = document.createElement('button');
     hint.type = 'button';
     hint.className = 'support-request';
