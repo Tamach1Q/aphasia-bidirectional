@@ -6,7 +6,11 @@
 Resolves the `NEEDS CLARIFICATION` items in [plan.md](./plan.md) Technical Context, and closes the
 open questions that block implementation rather than the user test.
 
-## 1. Status of the ten open questions
+## 1. Question status
+
+The Phase 0 set contained OQ-1 through OQ-10. OQ-11 was added during implementation and resolved in
+§9a. The current open set is OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-7, OQ-8, and OQ-10; OQ-6, OQ-9,
+and OQ-11 are resolved.
 
 | OQ | Topic | Status after Phase 0 |
 |---|---|---|

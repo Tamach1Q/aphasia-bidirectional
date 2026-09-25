@@ -330,8 +330,9 @@ Per §27. Not in this prototype:
 
 ## 10. Open questions
 
-Carried from `docs/architecture.md` §A11, plus spec-level items. None block starting, all block the
-component they name.
+This is the question registry carried from `docs/architecture.md` §A11 plus spec-level items.
+Current open questions are OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-7, OQ-8, and OQ-10.
+OQ-6, OQ-9, and OQ-11 are resolved; their decisions remain listed here for traceability.
 
 - **OQ-1** Chunk boundary rule (§A3.2) — blocks FR-010.
 - **OQ-2** Simplification gate thresholds (§A3.1) — blocks FR-008.
@@ -340,11 +341,13 @@ component they name.
 - **OQ-4** Partner view presentation and physical handover of the device — blocks FR-020, FR-035.
 - **OQ-5** Whether uncertainty is displayed at all, given verified evidence may serve better
   (§A11 item 4) — blocks FR-035.
-- **OQ-6** Model and prompt per operation (§A11 item 5) — blocks FR-014.
+- **OQ-6 RESOLVED 2026-09-24** Model and prompt per operation — `simplify` uses
+  `gemini-3.5-flash-lite`; `hypotheses` retains `gemini-3.6-flash`. See research.md §2b.
 - **OQ-7** Latency ceiling and behaviour on exceeding it (NFR-005) — blocks the user test.
 - **OQ-8** Personal context schema depth and how a researcher authors it on-device (§A2.4) — blocks
   FR-005.
-- **OQ-9** Icon and image asset source and licensing (§22) — blocks FR-036.
+- **OQ-9 RESOLVED 2026-09-24** Icon and image asset source and licensing — local SVG assets,
+  with no generic pictogram attached to arbitrary model-authored meaning options. See research.md §3.
 - **OQ-10** Safety rule calibration and acceptable false-positive rate (§A6.3) — blocks FR-027.
   *Measured 2026-09-24: 43.6% → 0.0% after three design fixes (research.md §9). Small sample;
   re-measure on Stage 5 output.*

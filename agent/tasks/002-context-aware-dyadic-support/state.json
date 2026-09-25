@@ -23,8 +23,8 @@
   "tasks_complete": 117,
   "tasks_total": 124,
   "unit_tests_passing": 220,
-  "browser_tests": "25/25 — GitHub Actions Test app run 36089271361 attempt 2",
-  "last_verified_commit": "f9d30458e93013c55796f6d8d07f39e67bd2ec06 (220 unit, 25/25 browser; workflow run 36089271361 attempt 2; later commits before this audit changed records only)",
+  "browser_tests": "25/25 — GitHub Actions Test app run 36093180480",
+  "last_verified_commit": "6fbfda9c93a81a46088732724f745fdc6d1ee95f (220 unit, 25/25 browser; workflow run 36093180480; subsequent audit-sync commit changes records only)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -54,7 +54,7 @@
     "T114 complete: app/app.js is bootstrap-only; active orchestration moved without behavior change to app/runtime.js, with a source-level invariant test.",
     "T116 complete: all twelve quickstart silent-regression checks are mapped to automated coverage; CI run 36089271361 passed 220 unit and 25/25 browser. Manual device checks remain separate.",
     "Worker manually redeployed 2026-09-25: aphasia-ai-proxy at https://aphasia-ai-proxy.tamach1q.workers.dev, deployed Version ID f9447876-b368-4715-913c-58580ce86084. Live smoke checks confirmed the current op=simplify {meaning,structure,options} response and op=hypotheses {result,hypotheses} response with turn evidence pointers. The no-op legacy {text}->{choices} compatibility path remains in code but is not used by the current app.",
-    "Cross-repo audit 2026-09-25: tasks ledger is 117/124 with exactly seven legitimate pending manual/research tasks; next_task remains T109. Worker/docs comments and current architecture were synchronized without changing runtime behavior, Worker configuration values, secrets, or open-question decisions."
+    "Cross-repo audit 2026-09-25: implementation, Worker contract, task ledger and docs rechecked against main. Exactly seven tasks remain pending (T109-T111, T117-T120); open questions are OQ-1,2,3,4,5,7,8,10; OQ-6,9,11 remain resolved. Worker deployment blocker is resolved and blockers remains empty."
   ],
   "updated": "2026-09-25"
 }

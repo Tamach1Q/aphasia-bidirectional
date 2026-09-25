@@ -134,23 +134,23 @@ else, stop and escalate to Product rather than resolving it in code.
 
 ## Open questions — flag to Product, do not decide unilaterally
 
-10 open questions are listed in `spec.md` §10, each annotated with the requirement it blocks. The
-ones most likely to be hit early:
+`spec.md` §10 now contains eleven question records because OQ-11 was added during implementation.
+The current open set is **OQ-1, OQ-2, OQ-3, OQ-4, OQ-5, OQ-7, OQ-8, and OQ-10**.
+OQ-6 (model selection), OQ-9 (icon/assets), and OQ-11 (interpret-mode Safety grounding) are
+resolved and documented in `research.md`.
 
-- **OQ-1 chunk boundary rule** — blocks FR-010, hit as soon as the receptive pipeline is built
-- **OQ-2 gate thresholds** — blocks FR-008, same point
-- **OQ-6 model and prompt per operation** — blocks FR-014
-- **OQ-9 icon and image assets** — blocks FR-036, and affects the no-build-step constraint
-- **OQ-10 safety calibration** — blocks FR-027
+The remaining questions are deliberately not closed by automated green tests:
 
-Two block the user test rather than the build, and must not surface late:
+- **OQ-1** chunk boundary rule — retained provisionally; real recognition rehearsal needed
+- **OQ-2** gate thresholds — retained provisionally; real partner speech needed
+- **OQ-3** participant consent covering the expanded off-device scope — blocks the user test
+- **OQ-4 / OQ-5** partner-view handover and uncertainty presentation — require device observation
+- **OQ-7** latency ceiling and over-ceiling behaviour — blocks the user test; requires end-to-end device measurement
+- **OQ-8** personal-context schema depth — revisit after a researcher authors one on-device
+- **OQ-10** safety calibration — fixture results are not enough; re-measure on rehearsal output
 
-- **OQ-3** participant consent covering the expanded off-device scope (§A5.4)
-- **OQ-7** latency ceiling and behaviour when exceeded (NFR-005)
-
-Unlike 001, these are deliberately open at handoff — several cannot be answered well without real
-utterance data or a running pipeline. Propose a value with reasoning and get it confirmed; do not
-silently pick one and proceed.
+Do not infer closure from implemented code or passing tests. Record a decision in `research.md`
+before removing an item from the open set.
 
 ## Definition of done for this task
 
