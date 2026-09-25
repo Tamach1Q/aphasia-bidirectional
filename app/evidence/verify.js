@@ -6,6 +6,7 @@
 
 import * as session from '../core/session.js';
 import * as personalContext from '../core/personal-context.js';
+import { logEvidenceFailures } from '../core/telemetry.js';
 
 function excerptOf(ref) {
   return String(ref && ref.excerpt || '').trim();
@@ -101,5 +102,6 @@ export function verifyHypotheses(hypotheses, options = {}) {
     });
   }
 
+  logEvidenceFailures(failures);
   return { hypotheses: verified, failures };
 }
