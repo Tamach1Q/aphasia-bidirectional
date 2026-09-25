@@ -289,9 +289,9 @@ states the meaning is not yet clear, and a partner-side action is offered.
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T106 [P] Extract the existing operational icons (`app/app.js:12`) into individual SVG files under `app/icons/` — local only, no CDN, no runtime external asset (research.md §3)
-- [ ] T107 [P] Author the four support-request icons in `app/icons/` and pair each with text (FR-036)
-- [ ] T108 Audit meaning options rendered by `app/views/person.js`: attach an icon from `app/icons/` ONLY where the representation is unambiguous and useful; attach none elsewhere (FR-036). Do not build a meaning-image library
+- [x] T106 [P] Extract the existing operational icons (`app/app.js:12`) into individual SVG files under `app/icons/` — local only, no CDN, no runtime external asset (research.md §3)
+- [x] T107 [P] Author the four support-request icons in `app/icons/` and pair each with text (FR-036)
+- [x] T108 Audit meaning options rendered by `app/views/person.js`: attach an icon from `app/icons/` ONLY where the representation is unambiguous and useful; attach none elsewhere (FR-036). Do not build a meaning-image library
 - [ ] T109 Verify one-handed left-thumb reach for every primary action on a real device; ensure no primary action sits in right-thumb-only territory (FR-037) — **manual, device required**
 - [ ] T110 Manual device check: recognition runs on iOS Safari and Android Chrome; continuous mode survives natural pauses; permission denial degrades to the typed path — **manual, device required**
 - [ ] T111 Manual device check: the partner view is glanceable and does not pull attention from the person (§25.2 observation, surfaced early because it may invalidate the design) — **manual, device required**

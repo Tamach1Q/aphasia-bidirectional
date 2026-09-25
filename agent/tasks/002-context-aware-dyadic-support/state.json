@@ -16,12 +16,12 @@
     "6"
   ],
   "stage_in_progress": "9 (polish and device/research closure)",
-  "next_task": "T106",
-  "tasks_complete": 109,
+  "next_task": "T109",
+  "tasks_complete": 112,
   "tasks_total": 124,
-  "unit_tests_passing": 214,
-  "browser_tests": "25/25 — GitHub Actions Test app run 36088081209",
-  "last_verified_commit": "96698c7be5c20463c15b9d9786867258f65eb2c0 (214 unit, 25/25 browser)",
+  "unit_tests_passing": 218,
+  "browser_tests": "25/25 — GitHub Actions Test app run 36088419901",
+  "last_verified_commit": "529cb0f2cd5d672e35ac0cb65fe2c62579eebcd3 (218 unit, 25/25 browser)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -48,7 +48,8 @@
     "No Worker deploy was performed. Repository Worker now contains op=hypotheses, but production Worker credentials/deploy remain separate.",
     "Phase 5 initially regressed the existing #shortenButton browser contract; fixed immediately in 2c063f9 and re-verified green before moving on.",
     "Researcher real-context loading is File API -> memory only, exposed only with ?research=1; participant data is never encoded in that URL and is cleared on session stop/reset.",
-    "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values."
+    "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values.",
+    "T106-T108 verified complete on main: shell/support controls use local SVGs only; arbitrary model-authored meaning options intentionally receive no generic pictogram. CI run 36088419901 is green."
   ],
   "updated": "2026-09-25"
 }
