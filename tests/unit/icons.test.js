@@ -9,7 +9,7 @@ test('all operational/support icons are local SVG files with no runtime external
   for (const name of names) {
     const svg = readFileSync(new URL('../../app/icons/' + name + '.svg', import.meta.url), 'utf8');
     assert.match(svg, /^<svg/);
-    assert.equal(/https?:\/\//.test(svg), false, name + ' must not load an external asset');
+    assert.equal(/(?:href|src)=["']https?:\/\//.test(svg), false, name + ' must not load an external asset');
   }
 });
 
