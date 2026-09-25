@@ -724,6 +724,19 @@ application and consented to separately. It is not a side effect of an applicati
 
 ---
 
+### A8.2 Research telemetry (FR-041, FR-042)
+
+Phase 1 telemetry is ephemeral diagnostic output only. `app/core/telemetry.js` records:
+
+- Worker operation name plus elapsed milliseconds
+- Safety suppression count, mode, and violated check names
+- Evidence-verification failure count and reason categories
+
+It MUST NOT log utterance text, hypothesis text, evidence excerpts, personal-context values, or a
+participant identifier. The default sink is the browser console; there is no persistence or upload
+path in Phase 1. This keeps the latency/safety measurements needed for the user test without turning
+research diagnostics into a second store of sensitive conversation data.
+
 ## A9. Reuse from the current implementation
 
 Directly reusable, with little or no change:

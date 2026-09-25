@@ -295,10 +295,10 @@ states the meaning is not yet clear, and a partner-side action is offered.
 - [ ] T109 Verify one-handed left-thumb reach for every primary action on a real device; ensure no primary action sits in right-thumb-only territory (FR-037) — **manual, device required**
 - [ ] T110 Manual device check: recognition runs on iOS Safari and Android Chrome; continuous mode survives natural pauses; permission denial degrades to the typed path — **manual, device required**
 - [ ] T111 Manual device check: the partner view is glanceable and does not pull attention from the person (§25.2 observation, surfaced early because it may invalidate the design) — **manual, device required**
-- [ ] T112 [P] Update `docs/architecture.md` with any architectural decision made during implementation that it does not already record (Constitution VI)
-- [ ] T113 [P] Update `README` (or create one) documenting the two serving modes — repo root for development, `app/` for deployment
+- [x] T112 [P] Update `docs/architecture.md` with any architectural decision made during implementation that it does not already record (Constitution VI)
+- [x] T113 [P] Update `README` (or create one) documenting the two serving modes — repo root for development, `app/` for deployment
 - [ ] T114 Delete any remaining dead code from `app/app.js`; confirm `app.js` contains wiring only, no logic
-- [ ] T115 Verify `app/context/` and `app/fixtures/` contain no real participant data (FR-005)
+- [x] T115 Verify `app/context/` and `app/fixtures/` contain no real participant data (FR-005)
 - [ ] T116 Run the full quickstart.md validation, including all twelve "checks that matter most"
 - [ ] T117 Close OQ-3 (participant consent text covering the expanded off-device scope) — **blocks the user test, not the build**
 - [ ] T118 Close OQ-7 (latency ceiling and over-ceiling behaviour) using the T025 measurements — **blocks the user test, not the build**
