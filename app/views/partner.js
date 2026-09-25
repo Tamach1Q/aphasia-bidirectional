@@ -28,7 +28,7 @@ function el(tag, className, text) {
   return node;
 }
 
-export function show({ hostEl, onConfirm = () => {}, onClose = () => {} }) {
+export function show({ hostEl, onConfirm = () => {}, onClose = () => {}, onPartnerAction = () => {} }) {
   if (!hostEl) return null;
   const snapshot = getHintSnapshot();
 
@@ -65,8 +65,34 @@ export function show({ hostEl, onConfirm = () => {}, onClose = () => {} }) {
       card.appendChild(ask);
       panel.appendChild(card);
     }
+  } else if (snapshot.state === 'unknown') {
+    const unknown = el('section', 'partner-unknown');
+    unknown.appendChild(el('h2', 'partner-unknown-title', 'まだ意味を絞れていません'));
+    unknown.appendChild(el(
+      'p',
+      'partner-unknown-note',
+      '候補が0件でも普通です。AIに決めさせず、会話を続けられます。',
+    ));
+
+    const rephrase = el('button', 'choice partner-rephrase', '聞き方を変える');
+    rephrase.type = 'button';
+    rephrase.addEventListener('click', () => {
+      onPartnerAction('rephrase');
+      let tip = unknown.querySelector('.partner-question-tip');
+      if (!tip) {
+        tip = el('p', 'partner-question-tip', '短い質問で、一つずつ聞いてみてください。');
+        unknown.appendChild(tip);
+      }
+    });
+    unknown.appendChild(rephrase);
+
+    const continueButton = el('button', 'text-button partner-continue', '会話をつづける');
+    continueButton.type = 'button';
+    continueButton.addEventListener('click', onClose);
+    unknown.appendChild(continueButton);
+    panel.appendChild(unknown);
   } else {
-    panel.appendChild(el('p', 'partner-hint-empty', '今は、確認できる候補がありません。'));
+    panel.appendChild(el('p', 'partner-hint-empty', '候補はまだありません。会話を続けられます。'));
   }
 
   const close = el('button', 'text-button partner-hint-close', 'もどる');

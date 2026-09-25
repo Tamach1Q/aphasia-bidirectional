@@ -221,23 +221,6 @@ import * as dom from './views/dom.js';
     dom.setBottomBar(false);
   }
 
-  // TODO(T097): old wording, currently unreachable. Kept until the Phase 5 wording audit.
-  function showDontUnderstand() {
-    dom.setMain(
-      '<div class="dont-understand-view"><p class="eyebrow">わかりません</p>'
-      + '<h2>もう一度、聞いてみましょう。</h2><div class="flow-actions">'
-      + '<button class="choice long-choice" id="reListenButton" type="button">'
-      + dom.icon('mic') + ' 相手にもう一度話してもらう</button>'
-      + '<button class="choice" id="goExpressiveButton" type="button">'
-      + dom.icon('mic') + ' 自分から伝える</button></div></div>',
-    );
-    $('reListenButton').addEventListener('click', beginListening);
-    $('goExpressiveButton').addEventListener('click', startExpressive);
-    dom.setStatus('相手にもう一度話してもらうか、自分から伝えられます。');
-    dom.setBottomBar(true);
-  }
-  void showDontUnderstand;
-
   function reset() {
     person.reset();
     expressive.reset();

@@ -80,3 +80,8 @@ textarea { border: 1px solid var(--line); border-radius: var(--radius-sm); paddi
 .partner-hint-empty { color: var(--muted); margin: 14px 0; }
 .confirmation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .confirmation-actions .confirmation-action { width: 100%; margin: 0; }
+
+.partner-unknown { padding: 8px 0 2px; }
+.partner-unknown-title { font-size: 22px; margin: 8px 0; }
+.partner-unknown-note, .partner-question-tip { color: var(--muted); line-height: 1.5; }
+.partner-question-tip { background: #f4f7f5; border-radius: var(--radius-sm); padding: 10px 12px; }

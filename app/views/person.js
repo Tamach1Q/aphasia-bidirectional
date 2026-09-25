@@ -330,22 +330,50 @@ function label(text, className) {
  * ちがう land in T095 and MUST stay four distinguishable controls, never one generic
  * "help" button (FR-031).
  */
+export const SUPPORT_REQUESTS = Object.freeze([
+  Object.freeze({ kind: 'repeat', label: 'もう一回', message: 'もう一回お願いします。' }),
+  Object.freeze({ kind: 'slow', label: 'ゆっくり', message: 'ゆっくりお願いします。' }),
+  Object.freeze({ kind: 'short', label: '短く', message: '短くお願いします。' }),
+  Object.freeze({ kind: 'different', label: 'ちがう', message: 'ちがう意味です。' }),
+]);
+
+export function dispatchSupportRequest(kind) {
+  const request = SUPPORT_REQUESTS.find((item) => item.kind === kind);
+  if (!request) return null;
+
+  if (hooks.onSupport) hooks.onSupport({ ...request });
+
+  if (kind === 'short') {
+    void forceSimplifyLast();
+  } else if (kind === 'different' && session.getConfirmationRequest()) {
+    session.rejectSelected();
+    partner.clearSelection();
+    repaint();
+  } else {
+    note(request.message);
+  }
+  return request;
+}
+
 function renderSupport() {
   if (!els || !els.support) return;
   els.support.replaceChildren();
-  els.support.hidden = !lastPartnerTurn && !lastPersonTurn;
+  const hasConversation = !!lastPartnerTurn || !!lastPersonTurn;
+  els.support.hidden = !hasConversation;
+  if (!hasConversation) return;
 
-  if (lastPartnerTurn) {
-    const shorter = document.createElement('button');
-    shorter.type = 'button';
-    shorter.className = 'support-request';
-    shorter.id = 'shortenButton';
-    shorter.textContent = '短く';
-    shorter.addEventListener('click', () => { forceSimplifyLast(); });
-    els.support.appendChild(shorter);
+  for (const request of SUPPORT_REQUESTS) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'support-request';
+    button.id = 'support-' + request.kind;
+    button.textContent = request.label;
+    button.addEventListener('click', () => dispatchSupportRequest(request.kind));
+    els.support.appendChild(button);
   }
 
-  // Appears because the person attempted a turn, never because hidden hypotheses are ready.
+  // This neutral action appears after a person turn regardless of generation outcome,
+  // so it does not reveal whether hidden hypotheses exist (FR-019).
   if (lastPersonTurn) {
     const hint = document.createElement('button');
     hint.type = 'button';

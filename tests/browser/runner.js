@@ -12,6 +12,7 @@ const SUITES = [
   './non-intervention.test.js', // T073 — writing hypotheses is visually silent
   './partner.test.js',          // T081–T083 — explicit partner view only
   './confirmation.test.js',     // T074/T084/T085 — one hypothesis, explicit yes/no
+  './unknown-path.test.js',      // T090/T091 — zero/all-suppressed are normal paths
 ];
 
 export async function runAll(resultsEl, summaryEl) {
