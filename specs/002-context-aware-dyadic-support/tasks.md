@@ -266,17 +266,22 @@ states the meaning is not yet clear, and a partner-side action is offered.
 
 ### Tests for User Story 4
 
-- [ ] T098 [P] [US4] Write `tests/browser/baseline.test.html` — `?ai=off` makes zero Worker calls, renders no transcript, renders no AI output, and **constructs no recognition object** (FR-039)
-- [ ] T099 [P] [US4] Write `tests/browser/context-conditions.test.html` — assert the exact `hypotheses` request body for `ctx=none|session|personal`; `none` contains `fragment` and nothing else (FR-040)
+- [x] T098 [P] [US4] Write `tests/browser/baseline.test.html` — `?ai=off` makes zero Worker calls, renders no transcript, renders no AI output, and **constructs no recognition object** (FR-039)
+  - Implemented as `tests/browser/baseline.test.js` in the existing single browser harness.
+- [x] T099 [P] [US4] Write `tests/browser/context-conditions.test.html` — assert the exact `hypotheses` request body for `ctx=none|session|personal`; `none` contains `fragment` and nothing else (FR-040)
+  - Implemented as `tests/browser/context-conditions.test.js` in the existing single browser harness.
 
 ### Implementation for User Story 4
 
-- [ ] T100 [US4] Implement `?ai=off` in `app/app.js` + `app/core/session.js` covering all four conjuncts of the A0 invariant (data-model.md §6)
-- [ ] T101 [US4] Implement `?receptive=off` in `app/pipelines/receptive.js` — transcript shown, simplification skipped
-- [ ] T102 [US4] Enforce `ctx` at REQUEST CONSTRUCTION in `app/pipelines/expressive.js`, not by ignoring extra data downstream, so the body is assertable (data-model.md §6)
-- [ ] T103 [US4] Implement `?config=<id>` loading from `app/context/` (synthetic only) and the on-device researcher load path for real context (FR-005, §A2.4)
-- [ ] T104 [P] [US4] Carry `logLatency` (`app/app.js:14`) into a shared helper and instrument both Worker operations (FR-041)
-- [ ] T105 [P] [US4] Log safety suppressions from `app/safety/index.js` and evidence-verification failures from `app/evidence/verify.js` (FR-042)
+- [x] T100 [US4] Implement `?ai=off` in `app/app.js` + `app/core/session.js` covering all four conjuncts of the A0 invariant (data-model.md §6)
+  - `session.js` already owned/parses the A0 config; this phase closed the remaining app/view gaps so no transient transcript is painted and app wiring exits before any recognition call.
+- [x] T101 [US4] Implement `?receptive=off` in `app/pipelines/receptive.js` — transcript shown, simplification skipped
+  - Already present in the receptive pipeline and browser-covered from US-1; re-verified in the Phase 6 full suite.
+- [x] T102 [US4] Enforce `ctx` at REQUEST CONSTRUCTION in `app/pipelines/expressive.js`, not by ignoring extra data downstream, so the body is assertable (data-model.md §6)
+  - Landed with T077 after OQ-11 because the Safety grounding domain depends on the exact sent request; T099 now pins all three bodies in a browser.
+- [x] T103 [US4] Implement `?config=<id>` loading from `app/context/` (synthetic only) and the on-device researcher load path for real context (FR-005, §A2.4)
+- [x] T104 [P] [US4] Carry `logLatency` (`app/app.js:14`) into a shared helper and instrument both Worker operations (FR-041)
+- [x] T105 [P] [US4] Log safety suppressions from `app/safety/index.js` and evidence-verification failures from `app/evidence/verify.js` (FR-042)
 
 **Checkpoint**: the user test can be run, pending OQ-3 and OQ-7.
 

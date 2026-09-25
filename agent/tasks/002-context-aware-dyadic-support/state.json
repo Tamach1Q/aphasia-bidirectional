@@ -5,7 +5,7 @@
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
   "constitution_min_version": "1.2.0",
-  "phase": "Phase 5 (US-3) complete — zero hypotheses and all-suppressed are ordinary unknown paths with a partner-side recovery action",
+  "phase": "Phase 6 (US-4) complete — A0 baseline and C0/C1/C2 request conditions are directly tested; local-only researcher context loading and privacy-safe telemetry are wired",
   "stages_complete": [
     "0",
     "1",
@@ -15,13 +15,13 @@
     "5",
     "6"
   ],
-  "stage_in_progress": "8 (research conditions)",
-  "next_task": "T098",
-  "tasks_complete": 101,
+  "stage_in_progress": "9 (polish and device/research closure)",
+  "next_task": "T106",
+  "tasks_complete": 109,
   "tasks_total": 124,
-  "unit_tests_passing": 209,
-  "browser_tests": "20/20 — GitHub Actions Test app run 36087526258",
-  "last_verified_commit": "2c063f9925a646bd28fcd8ba036061fc982b8632 (209 unit, 20/20 browser)",
+  "unit_tests_passing": 214,
+  "browser_tests": "25/25 — GitHub Actions Test app run 36088081209",
+  "last_verified_commit": "96698c7be5c20463c15b9d9786867258f65eb2c0 (214 unit, 25/25 browser)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -46,7 +46,9 @@
     "OQ-11 resolved 2026-09-25 before T077: interpret Safety grounds on textual values from the exact hypotheses request body actually sent; evidence verification remains a separate downstream responsibility.",
     "Phase 4 CI checkpoint at 6996ed2c24f5a0a2b08da15d6b93708926a720d6: 204/204 Node unit tests and 18/18 headless-Chrome browser tests green.",
     "No Worker deploy was performed. Repository Worker now contains op=hypotheses, but production Worker credentials/deploy remain separate.",
-    "Phase 5 initially regressed the existing #shortenButton browser contract; fixed immediately in 2c063f9 and re-verified green before moving on."
+    "Phase 5 initially regressed the existing #shortenButton browser contract; fixed immediately in 2c063f9 and re-verified green before moving on.",
+    "Researcher real-context loading is File API -> memory only, exposed only with ?research=1; participant data is never encoded in that URL and is cleared on session stop/reset.",
+    "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values."
   ],
   "updated": "2026-09-25"
 }
