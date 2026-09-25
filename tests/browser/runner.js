@@ -13,6 +13,8 @@ const SUITES = [
   './partner.test.js',          // T081–T083 — explicit partner view only
   './confirmation.test.js',     // T074/T084/T085 — one hypothesis, explicit yes/no
   './unknown-path.test.js',      // T090/T091 — zero/all-suppressed are normal paths
+  './baseline.test.js',          // T098 — A0 has no Worker/ASR/transcript/AI output
+  './context-conditions.test.js', // T099 — exact C0/C1/C2 request bodies
 ];
 
 export async function runAll(resultsEl, summaryEl) {
