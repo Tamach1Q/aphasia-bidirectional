@@ -17,7 +17,7 @@
   ],
   "stage_in_progress": "9 (polish and device/research closure)",
   "next_task": "T109",
-  "tasks_complete": 115,
+  "tasks_complete": 116,
   "tasks_total": 124,
   "unit_tests_passing": 218,
   "browser_tests": "25/25 — GitHub Actions Test app run 36088419901",
@@ -50,7 +50,8 @@
     "Researcher real-context loading is File API -> memory only, exposed only with ?research=1; participant data is never encoded in that URL and is cleared on session stop/reset.",
     "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values.",
     "T106-T108 verified complete on main: shell/support controls use local SVGs only; arbitrary model-authored meaning options intentionally receive no generic pictogram. CI run 36088419901 is green.",
-    "T112/T113/T115 complete: architecture now records privacy-safe research telemetry; root README documents repo-root development vs app-only deployment; every committed app/context and app/fixtures data file was reviewed and is explicitly synthetic."
+    "T112/T113/T115 complete: architecture now records privacy-safe research telemetry; root README documents repo-root development vs app-only deployment; every committed app/context and app/fixtures data file was reviewed and is explicitly synthetic.",
+    "T114 complete: app/app.js is bootstrap-only; active orchestration moved without behavior change to app/runtime.js, with a source-level invariant test."
   ],
   "updated": "2026-09-25"
 }

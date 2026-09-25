@@ -297,7 +297,7 @@ states the meaning is not yet clear, and a partner-side action is offered.
 - [ ] T111 Manual device check: the partner view is glanceable and does not pull attention from the person (§25.2 observation, surfaced early because it may invalidate the design) — **manual, device required**
 - [x] T112 [P] Update `docs/architecture.md` with any architectural decision made during implementation that it does not already record (Constitution VI)
 - [x] T113 [P] Update `README` (or create one) documenting the two serving modes — repo root for development, `app/` for deployment
-- [ ] T114 Delete any remaining dead code from `app/app.js`; confirm `app.js` contains wiring only, no logic
+- [x] T114 Delete any remaining dead code from `app/app.js`; confirm `app.js` contains wiring only, no logic
 - [x] T115 Verify `app/context/` and `app/fixtures/` contain no real participant data (FR-005)
 - [ ] T116 Run the full quickstart.md validation, including all twelve "checks that matter most"
 - [ ] T117 Close OQ-3 (participant consent text covering the expanded off-device scope) — **blocks the user test, not the build**

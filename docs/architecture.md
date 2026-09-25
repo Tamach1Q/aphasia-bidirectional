@@ -69,7 +69,13 @@ comes back.** The safety layer is never between the pipelines and the Worker, an
 the request. See §A6.
 
 Delivery remains a framework-free static app served by any static HTTP server, with no build step
-and no account. The Worker exists only so the static app never holds a model key, and remains
+and no account.
+
+`app/app.js` is deliberately a two-statement bootstrap: import `boot` from `app/runtime.js`, then
+invoke it. `runtime.js` is the composition/orchestration boundary that wires capture, pipelines,
+views, session/configuration, and telemetry together. Keeping the entry file logic-free makes the
+remaining architecture visible by module ownership instead of allowing a second monolith to grow
+back into `app.js`. The Worker exists only so the static app never holds a model key, and remains
 demo-scoped, disposable infrastructure.
 
 **Phase 1 has no persistence.** Nothing survives a page reload except what the researcher supplies

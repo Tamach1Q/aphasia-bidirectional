@@ -59,11 +59,11 @@ test('capture/inject.js reaches the session only through intake', () => {
   assert.match(src, /intake\.submitTurn\s*\(/);
 });
 
-test('app.js reaches the session only through intake', () => {
-  const src = code(path.join(APP, 'app.js'));
+test('runtime wiring reaches the session only through intake', () => {
+  const src = code(path.join(APP, 'runtime.js'));
   assert.equal(
     /sessionStore\s*\.\s*appendTurn\s*\(/.test(src), false,
-    'app.js must call intake.submitTurn, not sessionStore.appendTurn',
+    'runtime wiring must call intake.submitTurn, not sessionStore.appendTurn',
   );
   assert.match(src, /intake\.submitTurn\s*\(/);
 });
@@ -82,15 +82,15 @@ test('only views/person.js writes the transcript strip element (FR-010)', () => 
   // Two writers is how interim text ends up in the settled area: one of them paints the
   // wrong element and nothing fails until a participant sees it. app.js may pass the
   // element to the view — that is wiring — but must not write it.
-  const appSrc = code(path.join(APP, 'app.js'));
+  const runtimeSrc = code(path.join(APP, 'runtime.js'));
   assert.equal(
-    /partnerTranscript'\)\s*\.\s*(textContent|innerHTML|hidden)/.test(appSrc), false,
-    'app.js must write the strip only through views/person.js',
+    /partnerTranscript'\)\s*\.\s*(textContent|innerHTML|hidden)/.test(runtimeSrc), false,
+    'runtime wiring must write the strip only through views/person.js',
   );
   const offenders = [];
   for (const file of jsFiles()) {
     const r = rel(file);
-    if (r === 'views/person.js' || r === 'app.js') continue;
+    if (r === 'views/person.js' || r === 'runtime.js') continue;
     if (/partnerTranscript/.test(code(file))) offenders.push(r);
   }
   assert.deepEqual(offenders, [], `these also reach the transcript strip: ${offenders.join(', ')}`);
