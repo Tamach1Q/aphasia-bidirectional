@@ -5,7 +5,7 @@
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
   "constitution_min_version": "1.2.0",
-  "phase": "Phase 6 (US-4) complete — A0 baseline and C0/C1/C2 request conditions are directly tested; local-only researcher context loading and privacy-safe telemetry are wired",
+  "phase": "Phase 7 (polish & cross-cutting) in progress — automated polish/validation is complete; manual device verification and research closure remain",
   "stages_complete": [
     "0",
     "1",
@@ -13,15 +13,18 @@
     "3",
     "4",
     "5",
-    "6"
+    "6",
+    "7",
+    "8",
+    "9"
   ],
-  "stage_in_progress": "9 (polish and device/research closure)",
+  "stage_in_progress": "post-Stage 9 polish/device/research closure",
   "next_task": "T109",
   "tasks_complete": 117,
   "tasks_total": 124,
   "unit_tests_passing": 220,
-  "browser_tests": "25/25 — GitHub Actions Test app run 36089271361",
-  "last_verified_commit": "f9d30458e93013c55796f6d8d07f39e67bd2ec06 (220 unit, 25/25 browser)",
+  "browser_tests": "25/25 — GitHub Actions Test app run 36089271361 attempt 2",
+  "last_verified_commit": "f9d30458e93013c55796f6d8d07f39e67bd2ec06 (220 unit, 25/25 browser; workflow run 36089271361 attempt 2; later commits before this audit changed records only)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -37,22 +40,21 @@
     "T110",
     "T111"
   ],
-  "blockers": [
-    "The DEPLOYED Worker predates T063: it answers {op:'simplify'} with the legacy {choices} shape (verified 2026-09-25 from the running app). op=simplify exists in the repository but not in production, so the receptive direction cannot work against the live endpoint until the Worker is redeployed (`wrangler deploy` from the account holding GEMINI_API_KEY). The pipeline degrades correctly meanwhile — the person keeps the raw transcript."
-  ],
+  "blockers": [],
   "notes": [
     "OQ-1 and OQ-2 were re-examined in T069 and deliberately LEFT OPEN. Values retained; injected fixtures cannot settle either question (one fixture turn is one ASR final by construction, and the gate thresholds were tuned against these same fixtures). Both need a rehearsal with real recognition — T110, T111.",
     "OQ-10 reopened in substance: the Stage 5 surface produced a new consent-check false-positive class (「いつがいいですか」 suppressed on the いいです inside it). Fixed and tested; research.md §9 records why the earlier 0.0% figure was a property of the sample.",
     "OQ-11 resolved 2026-09-25 before T077: interpret Safety grounds on textual values from the exact hypotheses request body actually sent; evidence verification remains a separate downstream responsibility.",
     "Phase 4 CI checkpoint at 6996ed2c24f5a0a2b08da15d6b93708926a720d6: 204/204 Node unit tests and 18/18 headless-Chrome browser tests green.",
-    "No Worker deploy was performed. Repository Worker now contains op=hypotheses, but production Worker credentials/deploy remain separate.",
     "Phase 5 initially regressed the existing #shortenButton browser contract; fixed immediately in 2c063f9 and re-verified green before moving on.",
     "Researcher real-context loading is File API -> memory only, exposed only with ?research=1; participant data is never encoded in that URL and is cleared on session stop/reset.",
     "Telemetry logs only operation/duration, suppression check names/counts, and evidence failure reasons/counts — never utterance, hypothesis, excerpt, or personal-context values.",
     "T106-T108 verified complete on main: shell/support controls use local SVGs only; arbitrary model-authored meaning options intentionally receive no generic pictogram. CI run 36088419901 is green.",
     "T112/T113/T115 complete: architecture now records privacy-safe research telemetry; root README documents repo-root development vs app-only deployment; every committed app/context and app/fixtures data file was reviewed and is explicitly synthetic.",
     "T114 complete: app/app.js is bootstrap-only; active orchestration moved without behavior change to app/runtime.js, with a source-level invariant test.",
-    "T116 complete: all twelve quickstart silent-regression checks are mapped to automated coverage; CI run 36089271361 passed 220 unit and 25/25 browser. Manual device checks remain separate."
+    "T116 complete: all twelve quickstart silent-regression checks are mapped to automated coverage; CI run 36089271361 passed 220 unit and 25/25 browser. Manual device checks remain separate.",
+    "Worker manually redeployed 2026-09-25: aphasia-ai-proxy at https://aphasia-ai-proxy.tamach1q.workers.dev, deployed Version ID f9447876-b368-4715-913c-58580ce86084. Live smoke checks confirmed the current op=simplify {meaning,structure,options} response and op=hypotheses {result,hypotheses} response with turn evidence pointers. The no-op legacy {text}->{choices} compatibility path remains in code but is not used by the current app.",
+    "Cross-repo audit 2026-09-25: tasks ledger is 117/124 with exactly seven legitimate pending manual/research tasks; next_task remains T109. Worker/docs comments and current architecture were synchronized without changing runtime behavior, Worker configuration values, secrets, or open-question decisions."
   ],
   "updated": "2026-09-25"
 }

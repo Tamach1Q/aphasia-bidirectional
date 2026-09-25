@@ -1,11 +1,9 @@
-// Cloudflare Worker: proxies the one LLM-assisted step (open-ended partner-question answer
-// candidates) so the Gemini API key never has to live in the public static app.
+// Cloudflare Worker: proxies the two current model operations (simplify / hypotheses) and
+// retains the older no-`op` answer-candidate handler as a compatibility path.
 //
-// This is deliberately minimal, demo-scoped infrastructure. It exists so app/app.js never
-// needs a secret client-side. Whoever takes this over for production should feel free to
-// replace this Worker entirely with their own backend/model choice -- app/app.js only depends
-// on the small { text } -> { choices } | { error } contract below, not on this being a
-// Cloudflare Worker or on Gemini specifically.
+// This is deliberately minimal, demo-scoped infrastructure. The model key stays server-side;
+// the static app calls the current op-discriminated contract from app/runtime.js. Whoever takes
+// this over may replace Cloudflare/Gemini without changing that app-facing contract.
 
 // Prompts are imported as Text modules (see wrangler.toml [[rules]]) rather than pasted
 // in here. worker/prompts/*.txt stays the single source of truth, so a prompt cannot drift
@@ -17,10 +15,10 @@ const ALLOWED_ORIGINS = new Set([
   'https://tamach1q.github.io',
 ]);
 
-// Legacy path only. The deployed app still calls the { text } -> { choices } contract,
-// so this stays until T063/T078 replace it with op=simplify / op=hypotheses.
+// Legacy compatibility path only. The current app no longer calls { text } -> { choices };
+// it remains intentionally available alongside op=simplify / op=hypotheses.
 //
-// The two new operations name DIFFERENT models (wrangler.toml [vars], chosen in
+// The two current operations name DIFFERENT models (wrangler.toml [vars], chosen in
 // research.md §2b) and must not be folded back onto a single constant: simplify was
 // chosen for latency on the critical path, hypotheses for restraint and evidence fidelity.
 const GEMINI_MODEL = 'gemini-3.6-flash';
@@ -50,9 +48,9 @@ export default {
     let body;
     try { body = await request.json(); } catch (_) { return json({ error: 'invalid JSON body' }, 400, headers); }
 
-    // 002: op-discriminated requests. A body WITHOUT `op` is the superseded
-    // { text } -> { choices } contract, still served for the deployed app until T078
-    // replaces the expressive half. Do not remove it before then.
+    // 002: current app requests are op-discriminated. A body WITHOUT `op` reaches the
+    // superseded { text } -> { choices } compatibility handler. The current app does not
+    // depend on that path.
     if (body?.op === 'simplify') return handleSimplify(body, env, headers);
     if (body?.op === 'hypotheses') return handleHypotheses(body, env, headers);
 

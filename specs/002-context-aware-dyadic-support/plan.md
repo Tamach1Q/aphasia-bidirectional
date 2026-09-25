@@ -77,6 +77,11 @@ implementation, and are tracked as such.
 
 ## Project Structure
 
+> Implementation-status note (2026-09-25): the stage tables below preserve the file locations and
+> line references that existed while the migration was being planned. T114 later reduced
+> `app/app.js` to a bootstrap and moved active composition/orchestration to `app/runtime.js`.
+> Those historical references are not current ownership claims.
+
 ### Documentation (this feature)
 
 ```text
@@ -90,7 +95,7 @@ specs/002-context-aware-dyadic-support/
 │   ├── worker-api.md            # simplify / hypotheses operations
 │   └── injected-transcript.md   # FR-043 test-injection interface
 ├── checklists/requirements.md   # spec quality (already written)
-└── tasks.md                     # Phase 2 — /speckit-tasks, NOT created here
+└── tasks.md                     # implementation ledger; currently in Phase 7 closure
 ```
 
 ### Source code (repository root)
@@ -100,7 +105,8 @@ app/
 ├── index.html
 ├── styles.css
 ├── manifest.webmanifest
-├── app.js                    # entry point: wiring only, no logic
+├── app.js                    # two-statement bootstrap only
+├── runtime.js                # composition/orchestration wiring
 ├── core/
 │   ├── session.js            # turns ring buffer, confirmed (single writer), config
 │   ├── personal-context.js   # load, read-only, in-memory

@@ -14,10 +14,11 @@ compatibility_date = "2026-09-18"
 # prototype used in participant sessions should sit on. This repo was already broken once
 # by a retirement (8571c30).
 #
-# The legacy `{ text } -> { choices } ` handler still serves the deployed app and keeps
-# using GEMINI_MODEL until T063/T078 replace it.
+# A no-`op` `{ text } -> { choices }` handler remains for backward compatibility only.
+# The current app uses `op=simplify` and `op=hypotheses`; GEMINI_MODEL is retained solely
+# while that compatibility handler exists.
 [vars]
-GEMINI_MODEL = "gemini-3.6-flash"      # legacy path only — removed in T063/T078
+GEMINI_MODEL = "gemini-3.6-flash"      # legacy compatibility path only
 SIMPLIFY_MODEL = "gemini-3.5-flash-lite"
 HYPOTHESES_MODEL = "gemini-3.6-flash"
 

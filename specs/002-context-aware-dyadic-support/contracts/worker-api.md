@@ -1,13 +1,18 @@
 # Contract — Worker API
 
 **Endpoint**: single URL, `POST`, JSON in / JSON out.
-**Replaces**: the `{ text } → { choices }` contract used by the superseded model.
+**Current app contract**: the `op=simplify` / `op=hypotheses` envelope below replaces the
+superseded `{ text } → { choices }` contract for all calls made by the current app.
 **Source of truth**: `docs/architecture.md` §A5.
 
 The app depends on this contract only — not on Cloudflare, and not on any particular model vendor.
 Swapping the backend touches one constant in the client.
 
-## Why the old contract was replaced, not extended
+The Worker implementation still accepts a body without `op` through a legacy
+`{ text } → { choices }` compatibility handler. The current app does not call that path, so it is
+not part of the current app contract.
+
+## Why the current app moved off the old contract
 
 1. It had no way to express the expressive direction at all.
 2. Its response schema was `minItems: 2`, which makes **"no candidates" unrepresentable**. Spec

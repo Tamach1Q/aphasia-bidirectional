@@ -10,13 +10,10 @@ const SRC = readFileSync(new URL('../../worker/index.js', import.meta.url), 'utf
 const TOML = readFileSync(new URL('../../worker/wrangler.toml', import.meta.url), 'utf8');
 const code = stripComments(SRC, 'worker/index.js');
 
-test('the legacy contract still works — the DEPLOYED build depends on it until T078', () => {
-  // A body WITHOUT `op` must keep reaching the old { text } -> { choices } handler.
-  //
-  // As of T068 nothing in this repository calls it any more: the open-question candidate
-  // path is folded into `op=simplify`'s `options`. It survives because the currently
-  // published site is the pre-T068 build and would lose its only AI feature the moment
-  // this handler goes, while the Worker is deployed independently. T078 removes it.
+test('the legacy compatibility contract still works alongside both current op contracts', () => {
+  // A body WITHOUT `op` still reaches the old { text } -> { choices } handler.
+  // The current app no longer calls it; this assertion only pins the intentionally retained
+  // compatibility surface while simplify and hypotheses remain the active app contract.
   assert.match(code, /body\?\.op === 'simplify'/, 'simplify dispatch must be explicit');
   assert.match(code, /body\?\.op === 'hypotheses'/, 'hypotheses dispatch must be explicit');
   assert.match(code, /choices/, 'the legacy response shape must still be produced');

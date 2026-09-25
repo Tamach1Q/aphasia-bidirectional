@@ -28,6 +28,10 @@ anyone's behalf.
 
 Cross-reference convention: `§n` = product.md, `§An` = architecture.md.
 
+> **Implementation-location note (2026-09-25):** line-number references to `app.js` below are
+> historical migration references. Since T114, `app/app.js` is bootstrap-only and current runtime
+> orchestration lives in `app/runtime.js`.
+
 > **Do not read `specs/001-aphasia-conversation-aid/` or
 > `agent/tasks/001-aphasia-conversation-aid/task.md` as a source of requirements.** They describe a
 > product model this project no longer builds. They are retained as history only.

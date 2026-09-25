@@ -1,33 +1,86 @@
 # AI proxy (demo-scoped)
 
-A minimal Cloudflare Worker that holds the Gemini API key server-side, so `app/app.js` (a
-static, no-backend site on GitHub Pages) never has to embed a secret to get AI-assisted answer
-candidates for open-ended partner questions.
+A minimal Cloudflare Worker that holds the Gemini API key server-side, so the static app never
+embeds a model secret. The current app calls it from `app/runtime.js` through one URL and an
+operation-discriminated JSON contract.
 
-**This is throwaway demo infrastructure, not a production backend.** Whoever inherits this
-project should feel free to replace it with their own backend/model choice — `app/app.js` only
-depends on the contract below, nothing Cloudflare- or Gemini-specific.
+This is demo-scoped infrastructure, not a production backend. The app depends on the contract in
+`specs/002-context-aware-dyadic-support/contracts/worker-api.md`, not on Cloudflare or Gemini.
 
-## Contract
+## Current app contract
 
-`POST <worker-url>` with `{ "text": "<partner's utterance>" }` (from an allowed Origin) returns
-either `{ "choices": ["...", "...", "..."] }` (2–3 short Japanese answer candidates) or
-`{ "error": "<message>" }`.
+`POST <worker-url>` with JSON from an allowed Origin.
+
+### `op: "simplify"`
+
+Request:
+
+```json
+{ "op": "simplify", "text": "…", "level": "standard" }
+```
+
+Response:
+
+```json
+{
+  "op": "simplify",
+  "meaning": "…",
+  "structure": ["…"],
+  "options": ["…"]
+}
+```
+
+`structure` and `options` may be empty. `options` is capped at three items.
+
+### `op: "hypotheses"`
+
+Request contains a fragment with its turn id and, according to the research condition, may also
+contain short-term turns, confirmed meanings, and personal context.
+
+Response:
+
+```json
+{
+  "op": "hypotheses",
+  "result": "ok",
+  "hypotheses": [
+    {
+      "text": "…",
+      "evidence": [
+        { "source": "turn", "id": "t1", "excerpt": "…" }
+      ]
+    }
+  ]
+}
+```
+
+`result: "unknown"` with an empty `hypotheses` array is a valid normal result.
+
+## Legacy compatibility path
+
+A body without `op` still reaches the older `{ "text": "…" } -> { "choices": [...] }` handler.
+That path is retained for backward compatibility only. The current app no longer sends it; its
+active calls are `op=simplify` and `op=hypotheses`.
+
+Do not describe the legacy path as the current app contract, and do not remove it merely as
+documentation cleanup while compatibility is still intentionally retained in `worker/index.js`.
 
 ## Deploy
 
-Requires a free Cloudflare account (no credit card needed for the free tier).
+Requires a Cloudflare account and a configured `GEMINI_API_KEY` Worker secret.
 
 ```sh
 cd worker
-npx wrangler login              # opens a browser to authorize the CLI
-npx wrangler secret put GEMINI_API_KEY   # paste your Gemini API key when prompted
+npx wrangler login
+npx wrangler secret put GEMINI_API_KEY
 npx wrangler deploy
 ```
 
-`wrangler deploy` prints the live URL, something like
-`https://aphasia-ai-proxy.<your-subdomain>.workers.dev`. Put that URL into
-`AI_PROXY_URL` near the top of `app/app.js`.
+The Worker name is `aphasia-ai-proxy` (`wrangler.toml`). The app's endpoint is configured as
+`WORKER_URL` in `app/runtime.js`.
+
+Deployment/version status is operational state rather than architecture; record a verified manual
+deploy in `agent/tasks/002-context-aware-dyadic-support/state.json`.
 
 ## Local dev
 
@@ -37,4 +90,4 @@ npx wrangler deploy
 ## Origin allowlist
 
 `ALLOWED_ORIGINS` in `index.js` restricts which sites can call this Worker via CORS. Update it if
-the app's Pages URL changes (custom domain, fork, etc).
+the app's Pages URL changes (custom domain, fork, etc.).

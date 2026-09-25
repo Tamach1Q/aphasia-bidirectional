@@ -354,8 +354,9 @@ never before.
 
 ### A5.1 Change from the previous contract
 
-The old contract was `{ text } → { choices }` with a response schema of `minItems: 2, maxItems: 3`.
-It is replaced, not extended, for two reasons:
+The old app contract was `{ text } → { choices }` with a response schema of
+`minItems: 2, maxItems: 3`. The current app replaced it with the op-discriminated contract below
+for two reasons:
 
 1. it has no way to express the expressive direction at all
 2. **`minItems: 2` makes "no candidates" unrepresentable**, and §15 requires zero candidates to be a
@@ -363,6 +364,10 @@ It is replaced, not extended, for two reasons:
 
 A single endpoint with an `op` discriminator keeps the Worker minimal. (Alternative: two endpoints.
 Either is fine; the discriminator is chosen to preserve the one-URL, one-CORS-rule shape.)
+
+The Worker still accepts the old no-`op` shape as a compatibility path, but no current app module
+calls it. Compatibility availability is an implementation detail; §A5.2 and §A5.3 are the current
+app contract.
 
 ### A5.2 `op: "simplify"`
 
@@ -386,10 +391,10 @@ Either is fine; the discriminator is chosen to preserve the one-URL, one-CORS-ru
 ```jsonc
 // request
 { "op": "hypotheses",
-  "fragment": "…",
-  "shortTerm": [ { "speaker": "partner", "text": "…" } ],   // §A2.2
-  "confirmed": [ "…" ],                                      // §A2.3
-  "personalContext": { … } }                                 // §A2.4, may be omitted
+  "fragment":  { "id": "t12", "text": "…10…" },
+  "shortTerm": [ { "id": "t11", "speaker": "partner", "text": "明日の病院、何時だった？" } ],
+  "confirmed": [ { "id": "c3", "text": "明日病院に行く" } ],
+  "personalContext": { … } }   // fields beyond fragment depend on config.ctx; §A8
 
 // response
 { "op": "hypotheses",
@@ -745,6 +750,10 @@ research diagnostics into a second store of sensitive conversation data.
 
 ## A9. Reuse from the current implementation
 
+> Historical migration record: the line-number references in this section describe the pre-T114
+> implementation from which 002 was extracted. They are provenance, not current file locations.
+> Current bootstrap is `app/app.js`; active orchestration is in `app/runtime.js`.
+
 Directly reusable, with little or no change:
 
 | Component | Location | Note |
@@ -782,48 +791,37 @@ Deleted, not flagged off:
 | `speakConfirmed` TTS | `app.js:246` | Phase 2 |
 | `simplifyPartner` regex classifier | `app.js:56-65` | gate (§A3.1) + `op=simplify` — **removed T067** |
 | `renderPartnerMeaning` / `showPartnerResult` | `app.js:67-83` | `app/views/person.js` — **removed T067** |
-| open-question answer-candidate call (`{text} → {choices}`) | `app.js:66,71-89` | `op=simplify`'s `options` (§A3.3) — **removed T068**; the Worker handler survives until T078, see below |
+| open-question answer-candidate call (`{text} → {choices}`) | `app.js:66,71-89` | `op=simplify`'s `options` (§A3.3) — **removed T068**; a Worker-only compatibility handler remains |
 | `showChoices` / `setPartnerTranscript` helpers | `app.js:21,24` | `app/views/person.js` — **removed T067** |
-| Worker prompt + `minItems: 2` schema | `worker/index.js:43-47,65` | §A5.2 / §A5.3 |
 
 Demoted to **optional, not built in Phase 1**: progressive clarification as one repair strategy
 (§13.6), final-sentence rendering (§16.3), TTS, rotated partner output.
 
-> **The legacy Worker handler is still deployed, and the repository no longer calls it.** As of T068
-> nothing in `app/` sends a body without `op`. The `{text} → {choices}` handler stays in
-> `worker/index.js` because the **published site** is still the pre-T068 build and would lose its
-> only AI feature the moment the handler goes; the Worker deploys independently of the static app.
-> T078 removes it. Verified 2026-09-25: the deployed Worker answers `{op:"simplify"}` with the legacy
-> `{choices}` shape, i.e. it predates T063 — **`op=simplify` is in the repository but not in
-> production**, and the receptive direction cannot work against the live endpoint until the Worker is
-> redeployed.
+> **Legacy Worker compatibility is intentionally separate from the current app contract.** Nothing
+> in `app/` sends a body without `op`. `worker/index.js` still accepts
+> `{text} → {choices}` for compatibility, while the current app uses `op=simplify` and
+> `op=hypotheses`. The Worker was manually redeployed on 2026-09-25 and the live endpoint was
+> smoke-checked against both current response shapes. Exact deployment identity is tracked in
+> `agent/tasks/002-context-aware-dyadic-support/state.json`.
 
 ---
 
-## A11. Open architectural questions
+## A11. Architectural question status
 
-Not blockers for starting Phase 1, but each needs an answer before the component it affects is
-built.
+`specs/002-context-aware-dyadic-support/research.md` is the detailed decision record; this section
+summarizes the current status so resolved questions are not accidentally treated as open.
 
-1. **Chunk boundary rule (§A3.2).** Is one ASR `isFinal` one semantic chunk, or do finals accumulate
-   until a sentence-end cue or pause threshold? Treating each final as a chunk is the cheapest
-   Phase 1 default and is what the current ASR already yields, but it will sometimes settle a
-   fragment of a sentence.
-2. **Gate thresholds (§A3.1).** Concrete values for length and entity count. Should be calibrated
-   against recorded partner utterances rather than guessed.
-3. **Partner view presentation.** Full-screen swap vs. a peek panel, and the physical handover —
-   who holds the phone, and how the view returns to the person.
-4. **Uncertainty display.** Whether `partnerView` shows a coarse confidence band, and whether the
-   model is asked for one at all. LLM self-reported confidence is weak evidence and may anchor the
-   partner (§26 q6). Note that verified `evidence` (§A5.3) already gives the partner something
-   better to judge by, which may make a confidence band unnecessary.
-5. **Model and prompt per op.** `simplify` and `hypotheses` are different tasks with different
-   latency budgets; whether they share a model is open. Current Worker pins `gemini-3.6-flash`.
-6. **Latency budget.** Receptive simplification is now on the conversational critical path. An
-   acceptable ceiling, and behaviour when exceeded, are undefined.
-7. **Personal context schema depth (§A2.4).** The sketch above is minimal; what the researcher can
-   realistically author on the device immediately before a session determines the real shape.
-8. **Icon and image assets (§22).** Source (existing pictogram set / generated / photographed) and
-   licensing. Affects bundle size and the no-build-step constraint.
-9. **Safety rule calibration (§A6.3).** Acceptable false-positive rate for suppression, and how
-   violations are reviewed after the test.
+| OQ | Topic | Current status |
+|---|---|---|
+| OQ-1 | Chunk boundary rule | **open / provisional** — retained after T069; real recognition rehearsal needed (T110) |
+| OQ-2 | Gate thresholds | **open / provisional** — retained after T069; real recognition rehearsal needed |
+| OQ-3 | Consent for expanded off-device scope | **open** — blocks user test, not build (T117) |
+| OQ-4 | Partner view presentation / handover | **open** — resolve from device observation (T119) |
+| OQ-5 | Uncertainty display | **open / provisional: do not display** — resolve with OQ-4 observations (T119) |
+| OQ-6 | Model and prompt per op | **resolved** — operation-specific models selected in research.md §2b |
+| OQ-7 | Latency ceiling / over-ceiling behaviour | **open** — end-to-end device measurement required (T118) |
+| OQ-8 | Personal-context schema depth | **open for revisit** — researcher authoring rehearsal required (T120) |
+| OQ-9 | Icon/image assets | **resolved** — local SVG strategy |
+| OQ-10 | Safety calibration | **open** — fixture result is not sufficient calibration for rehearsal output |
+| OQ-11 | Interpret-mode Safety grounding | **resolved** — exact hypotheses request body projection; evidence verification remains separate |
+
