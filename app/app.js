@@ -4,6 +4,7 @@ import * as inject from './capture/inject.js';
 import * as intake from './capture/intake.js';
 import * as asr from './capture/asr.js';
 import * as receptive from './pipelines/receptive.js';
+import * as expressive from './pipelines/expressive.js';
 import * as person from './views/person.js';
 
 (() => {
@@ -24,8 +25,8 @@ import * as person from './views/person.js';
   // app.js must never call sessionStore.appendTurn directly; a test enforces that only
   // the capture layer does (tests/unit/single-intake.test.js).
   function recordTurn(speaker, text, source = 'asr') {
-    if (!sessionStore.isActive()) return;
-    intake.submitTurn({ speaker, text, source });
+    if (!sessionStore.isActive()) return null;
+    return intake.submitTurn({ speaker, text, source });
   }
   // T034: injection is reachable only behind ?inject=1, never in a participant session.
   // Exposed on window so a researcher (or the browser test page) can drive it from the
@@ -80,15 +81,26 @@ import * as person from './views/person.js';
   // See worker/README.md — demo-scoped infrastructure, replaceable without touching the
   // contract in contracts/worker-api.md.
   const WORKER_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
-  receptive.setTransport(async (body) => {
+  async function callWorker(body) {
     const res = await fetch(WORKER_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { error: data.error || `HTTP ${res.status}` };
+    if (!res.ok) return { error: data.error || ('HTTP ' + res.status) };
     return data;
+  }
+  receptive.setTransport(callWorker);
+  expressive.setTransport(callWorker);
+
+  // A person turn starts generation, but the result is held as data only.
+  intake.onTurn((turn) => {
+    if (turn.speaker !== 'person') return;
+    const started = performance.now();
+    expressive.handleFragment(turn, { config: config002 })
+      .then(() => logLatency('llm: expressive hypotheses', started, turn.text))
+      .catch((err) => console.warn('[002] expressive pipeline failed', err));
   });
 
   person.mount({
@@ -136,7 +148,7 @@ import * as person from './views/person.js';
       ? '音声は使いません。文字で入力できます。'
       : 'この端末では音声を聞き取れません。文字で入力できます。');
   }
-  function stopListening() { sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); person.setTranscript(''); setStatus('聞くのを止めました。'); }
+  function stopListening() { expressive.reset(); sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); person.setTranscript(''); setStatus('聞くのを止めました。'); }
 
   // ---- CAPTURING_USER ----
   function renderCapturing() { setMain('<div class="capturing-view"><span class="rec-dot" aria-hidden="true"></span><p>あなたのことばを聞いています…</p><p class="small-note" id="capturingPartial"></p><p class="small-note">話し終わったら、下のボタンを押してください。</p></div>'); setBottomBar(true); }
@@ -159,9 +171,11 @@ import * as person from './views/person.js';
       onPartial: (text) => { const el = $('capturingPartial'); if (el) el.textContent = text; },
       onFinal: (fragment) => {
         state.expressive = false;
+        state.fragment = fragment;
         $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
-        renderFragmentForm(fragment, false);
-        setStatus('ことばを確認して、進んでください。');
+        renderIdle();
+        setStatus('ことばを受け取りました。会話を続けられます。');
+        resumePartnerListening();
       },
       onError: (message) => showExpressiveRecovery(`${message} 文字で入力するか、もう一度話してください。`),
       onLatency: logLatency,
@@ -177,14 +191,26 @@ import * as person from './views/person.js';
     state.expressive = false;
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
     const turn = asr.finishExpressive(text ?? asr.getExpressivePartial());
-    renderFragmentForm(turn ? turn.text : (text || ''), false);
-    setStatus('ことばを確認して、進んでください。');
+    state.fragment = turn ? turn.text : (text || '');
+    renderIdle();
+    setStatus('ことばを受け取りました。会話を続けられます。');
+    resumePartnerListening();
   }
 
   // ---- USER_FRAGMENT_READY ----
   function renderFragmentForm(prefill, autofocus, allowRetry = false) {
     setMain(`<form class="typed-form" id="typedForm"><label for="fragmentInput">短いことばで大丈夫です</label><textarea id="fragmentInput" rows="3" placeholder="例：娘　明日　病院">${escapeHtml(prefill || '')}</textarea><button class="button button-primary" type="submit">このことばで進む</button>${allowRetry ? '<button class="choice retry-speech" id="retrySpeechButton" type="button">もう一度話す</button>' : ''}<button class="text-button" id="fragmentBackButton" type="button">やめる</button></form>`);
-    $('typedForm').addEventListener('submit', (event) => { event.preventDefault(); beginFragment($('fragmentInput').value.trim()); });
+    $('typedForm').addEventListener('submit', (event) => {
+      event.preventDefault();
+      const text = $('fragmentInput').value.trim();
+      if (!text) return;
+      if (!sessionStore.isActive()) sessionStore.startSession(config002);
+      state.fragment = text;
+      recordTurn('person', text, 'typed');
+      renderIdle();
+      setStatus('ことばを受け取りました。会話を続けられます。');
+      resumePartnerListening();
+    });
     if (allowRetry) $('retrySpeechButton').addEventListener('click', startExpressive);
     $('fragmentBackButton').addEventListener('click', () => { renderIdle(); setStatus('準備できています'); resumePartnerListening(); });
     if (autofocus) $('fragmentInput').focus();
@@ -271,6 +297,7 @@ import * as person from './views/person.js';
     // Clears the settled region and the chunker with it: 最初から means the conversation
     // starts over, so nothing may carry a revision link to a chunk that no longer exists.
     person.reset();
+    expressive.reset();
     state.listening = false;
     stopPartnerRecognition();
     stopExpressiveRecognition();

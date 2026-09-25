@@ -1,8 +1,32 @@
 // Phase 4 / T073 — storing generated hypotheses must be visually silent (FR-019).
 import * as hints from '../../app/core/hint-store.js';
+import * as session from '../../app/core/session.js';
+import * as expressive from '../../app/pipelines/expressive.js';
 import { assert, assertEqual } from './runner.js';
 
 export function register(test) {
+  test('the expressive pipeline itself causes zero DOM mutation after capture (FR-019)', async () => {
+    session.__resetForTests();
+    hints.__resetForTests();
+    const config = session.parseConfig('?ctx=none');
+    session.startSession(config);
+    const fragment = session.appendTurn({ speaker: 'person', text: '10' });
+
+    expressive.setTransport(async () => ({
+      result: 'ok',
+      hypotheses: [{ text: '10時', evidence: [{ source: 'turn', id: fragment.id, excerpt: '10' }] }],
+    }));
+
+    const records = [];
+    const observer = new MutationObserver((items) => records.push(...items));
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, characterData: true });
+    await expressive.handleFragment(fragment, { config });
+    await Promise.resolve();
+    observer.disconnect();
+
+    assertEqual(records.length, 0, 'generation + store write must be visually silent');
+  });
+
   test('writing generated hypotheses causes zero DOM mutation', async () => {
     hints.__resetForTests();
     const marker = document.createElement('div');

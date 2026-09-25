@@ -167,3 +167,9 @@ export async function handleFragment(fragmentTurn, options = {}) {
     suppressed: safetyResult.suppressed,
   };
 }
+
+
+/** Session/reset lifecycle: invalidate any in-flight response and empty held hints. */
+export function reset() {
+  return clearHints();
+}

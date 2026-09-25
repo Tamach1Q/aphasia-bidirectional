@@ -23,6 +23,8 @@
 
 import * as receptive from '../pipelines/receptive.js';
 import * as intake from '../capture/intake.js';
+import * as session from '../core/session.js';
+import * as partner from './partner.js';
 
 /** @type {{settled: HTMLElement, transcript: HTMLElement, support: HTMLElement}|null} */
 let els = null;
@@ -32,6 +34,9 @@ let entries = [];
 
 /** The most recent partner turn, so `[短く]` has something to act on (FR-009). */
 let lastPartnerTurn = null;
+
+/** Last settled person fragment. Used only to make the explicit hint action reachable. */
+let lastPersonTurn = null;
 
 let counter = 0;
 let hooks = {};
@@ -69,7 +74,13 @@ export function mount({ settledEl, transcriptEl, supportEl, config = {}, onStatu
   for (const dispose of unsubscribe) dispose();
   unsubscribe = [
     intake.onInterim((text) => setTranscript(text)),
-    intake.onTurn((turn) => { if (turn.speaker === 'partner') handlePartnerTurn(turn); }),
+    intake.onTurn((turn) => {
+      if (turn.speaker === 'partner') handlePartnerTurn(turn);
+      if (turn.speaker === 'person') {
+        lastPersonTurn = turn;
+        renderSupport();
+      }
+    }),
   ];
 
   renderSupport();
@@ -322,16 +333,86 @@ function label(text, className) {
 function renderSupport() {
   if (!els || !els.support) return;
   els.support.replaceChildren();
-  els.support.hidden = !lastPartnerTurn;
-  if (!lastPartnerTurn) return;
+  els.support.hidden = !lastPartnerTurn && !lastPersonTurn;
 
-  const shorter = document.createElement('button');
-  shorter.type = 'button';
-  shorter.className = 'support-request';
-  shorter.id = 'shortenButton';
-  shorter.textContent = '短く';
-  shorter.addEventListener('click', () => { forceSimplifyLast(); });
-  els.support.appendChild(shorter);
+  if (lastPartnerTurn) {
+    const shorter = document.createElement('button');
+    shorter.type = 'button';
+    shorter.className = 'support-request';
+    shorter.id = 'shortenButton';
+    shorter.textContent = '短く';
+    shorter.addEventListener('click', () => { forceSimplifyLast(); });
+    els.support.appendChild(shorter);
+  }
+
+  // Appears because the person attempted a turn, never because hidden hypotheses are ready.
+  if (lastPersonTurn) {
+    const hint = document.createElement('button');
+    hint.type = 'button';
+    hint.className = 'support-request';
+    hint.id = 'hintButton';
+    hint.textContent = 'ことばのヒント';
+    hint.addEventListener('click', showHints);
+    els.support.appendChild(hint);
+  }
+}
+
+export function showHints() {
+  if (!els || !lastPersonTurn) return null;
+  return partner.show({
+    hostEl: els.settled,
+    onConfirm: () => showConfirmation(),
+    onClose: () => repaint(),
+  });
+}
+
+export function showConfirmation() {
+  if (!els) return null;
+  const request = session.getConfirmationRequest();
+  if (!request) return null;
+
+  const panel = document.createElement('section');
+  panel.className = 'confirmation-view';
+
+  const heading = document.createElement('p');
+  heading.className = 'eyebrow';
+  heading.textContent = 'この意味で合っていますか？';
+  panel.appendChild(heading);
+
+  const meaning = document.createElement('p');
+  meaning.className = 'confirmation-meaning';
+  meaning.textContent = request.text;
+  panel.appendChild(meaning);
+
+  const actions = document.createElement('div');
+  actions.className = 'confirmation-actions';
+
+  const yes = document.createElement('button');
+  yes.type = 'button';
+  yes.id = 'confirmYes';
+  yes.className = 'button button-primary confirmation-action';
+  yes.textContent = 'はい';
+  yes.addEventListener('click', () => {
+    session.confirmSelected();
+    partner.clearSelection();
+    repaint();
+  });
+
+  const no = document.createElement('button');
+  no.type = 'button';
+  no.id = 'confirmNo';
+  no.className = 'choice confirmation-action';
+  no.textContent = 'ちがう';
+  no.addEventListener('click', () => {
+    session.rejectSelected();
+    partner.clearSelection();
+    repaint();
+  });
+
+  actions.append(yes, no);
+  panel.appendChild(actions);
+  els.settled.replaceChildren(panel);
+  return panel;
 }
 
 // ---------------------------------------------------------------- lifecycle
@@ -342,6 +423,8 @@ export function reset() {
   if (els) els.settled.replaceChildren();
   counter = 0;
   lastPartnerTurn = null;
+  lastPersonTurn = null;
+  partner.clearSelection();
   receptive.reset();
   setTranscript('');
   renderSupport();

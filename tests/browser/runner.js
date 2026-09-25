@@ -10,6 +10,8 @@ import * as inject from '../../app/capture/inject.js';
 const SUITES = [
   './receptive.test.js',   // T059a — the rendered half of FR-010
   './non-intervention.test.js', // T073 — writing hypotheses is visually silent
+  './partner.test.js',          // T081–T083 — explicit partner view only
+  './confirmation.test.js',     // T074/T084/T085 — one hypothesis, explicit yes/no
 ];
 
 export async function runAll(resultsEl, summaryEl) {

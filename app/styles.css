@@ -70,3 +70,15 @@ textarea { border: 1px solid var(--line); border-radius: var(--radius-sm); paddi
 .small-note.ai-error { color: var(--warning); }
 @media (max-width: 389px) { :root { --text-question: 25px; --button-height: 56px; } .partner-zone { padding-left: 10px; padding-right: 10px; } .button { padding-left: 8px; padding-right: 8px; } }
 @media (min-width: 641px) { .app-shell { padding-top: 20px; } }
+
+/* Partner hint view: reached only after explicit [ことばのヒント]. */
+.partner-hint-view, .confirmation-view { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px; box-shadow: 0 5px 18px #1f332b0a; }
+.partner-hint-disclaimer { color: var(--muted); font-size: 13px; line-height: 1.45; margin: 6px 0 12px; }
+.hypothesis-card { border-top: 1px solid var(--line); padding: 14px 0; }
+.hypothesis-label { color: var(--muted); font-size: var(--text-label); font-weight: var(--weight-semibold); }
+.hypothesis-text, .confirmation-meaning { font-size: 24px; font-weight: var(--weight-bold); line-height: 1.3; margin: 6px 0 12px; }
+.hypothesis-evidence { background: #f4f7f5; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px; }
+.evidence-quote { margin: 5px 0 0; color: var(--ink); font-size: 15px; }
+.partner-hint-empty { color: var(--muted); margin: 14px 0; }
+.confirmation-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.confirmation-actions .confirmation-action { width: 100%; margin: 0; }
