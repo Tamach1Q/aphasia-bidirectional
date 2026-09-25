@@ -27,8 +27,24 @@ function personalValueContains(value, excerpt) {
   }
 }
 
-export function verifyEvidence(ref) {
+function sentInRequest(ref, request) {
+  if (!request) return true;
+  if (ref.source === 'turn') {
+    return request.fragment?.id === ref.id
+      || (request.shortTerm || []).some((turn) => turn.id === ref.id);
+  }
+  if (ref.source === 'confirmed') {
+    return (request.confirmed || []).some((item) => item.id === ref.id);
+  }
+  if (ref.source === 'personalContext') {
+    return Object.prototype.hasOwnProperty.call(request, 'personalContext');
+  }
+  return false;
+}
+
+export function verifyEvidence(ref, options = {}) {
   if (!ref || typeof ref !== 'object') return { ok: false, reason: 'malformed' };
+  if (!sentInRequest(ref, options.request)) return { ok: false, reason: 'not-sent-to-model' };
   const excerpt = excerptOf(ref);
   if (!excerpt) return { ok: false, reason: 'empty-excerpt' };
 
@@ -59,7 +75,7 @@ export function verifyEvidence(ref) {
   return { ok: false, reason: 'unknown-source' };
 }
 
-export function verifyHypotheses(hypotheses) {
+export function verifyHypotheses(hypotheses, options = {}) {
   const verified = [];
   const failures = [];
 
@@ -67,7 +83,7 @@ export function verifyHypotheses(hypotheses) {
     const refs = Array.isArray(hypothesis && hypothesis.evidence) ? hypothesis.evidence : [];
     const keptEvidence = [];
     for (const [evidenceIndex, ref] of refs.entries()) {
-      const result = verifyEvidence(ref);
+      const result = verifyEvidence(ref, options);
       if (result.ok) keptEvidence.push({ ...ref });
       else failures.push({
         hypothesisIndex,

@@ -40,8 +40,9 @@ export function buildRequest(fragmentTurn, config = session.getConfig() || {}) {
   }
 
   if (ctx === 'personal') {
-    const context = personalContext.getPersonalContext();
-    if (context) body.personalContext = context;
+    // C2 contains all four fields even when no personal context was loaded. An explicit
+    // empty object is different from silently changing the research condition.
+    body.personalContext = personalContext.getPersonalContext() || {};
   }
 
   return body;
@@ -95,9 +96,7 @@ export async function handleFragment(fragmentTurn, options = {}) {
   }
 
   if (config.ai === 'off') {
-    // A0: no Worker request. Keeping the store empty is more accurate than claiming the
-    // model was unable to infer something it was never asked.
-    clearHints();
+    // A0: no Worker request. clearHints() above already left the store empty.
     return { state: 'empty', skipped: 'ai-off', generation };
   }
 
@@ -155,7 +154,7 @@ export async function handleFragment(fragmentTurn, options = {}) {
 
   // Verification does not vouch for Safety and Safety does not vouch for citations.
   // Invalid pointers disappear; candidates that already passed Safety remain.
-  const verified = verifyHypotheses(safetyResult.kept);
+  const verified = verifyHypotheses(safetyResult.kept, { request: body });
   const stored = setHypotheses(body.fragment.id, verified.hypotheses, generation);
 
   return {

@@ -98,3 +98,20 @@ test('personalContext paths must resolve and contain the excerpt', () => {
   assert.equal(result.failures.length, 1);
   assert.equal(result.failures[0].reason, 'personal-path-not-found');
 });
+
+
+test('pipeline scoping can reject evidence that is live but was not sent to the model', () => {
+  fresh();
+  personalContext.loadFromObject({ places: [{ name: 'さくら台病院' }] });
+  const fragment = session.appendTurn({ speaker: 'person', text: 'さくら' });
+  const request = { op: 'hypotheses', fragment: { id: fragment.id, text: fragment.text } };
+
+  const result = verifyHypotheses([{
+    text: 'さくら台病院',
+    evidence: [{ source: 'personalContext', path: 'places[0]', excerpt: 'さくら台病院' }],
+  }], { request });
+
+  assert.equal(result.hypotheses.length, 1);
+  assert.deepEqual(result.hypotheses[0].evidence, []);
+  assert.equal(result.failures[0].reason, 'not-sent-to-model');
+});

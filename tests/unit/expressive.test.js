@@ -32,6 +32,11 @@ test('request construction obeys ctx exactly', () => {
   personalContext.loadFromObject({ places: [{ name: 'さくら台病院' }] });
   fragment = session.appendTurn({ speaker: 'person', text: 'さくら' });
   assert.equal('personalContext' in expressive.buildRequest(fragment, config), true);
+
+  config = fresh('?ctx=personal');
+  fragment = session.appendTurn({ speaker: 'person', text: '空' });
+  assert.deepEqual(expressive.buildRequest(fragment, config).personalContext, {},
+    'C2 keeps the personalContext field even when it is empty');
 });
 
 test('OQ-11 grounding includes only semantic values actually sent', () => {
@@ -140,4 +145,24 @@ test('a stale response cannot overwrite a newer fragment', async () => {
   const old = await oldPromise;
   assert.equal(old.state, 'stale');
   assert.equal(hints.getHintSnapshot().hypotheses[0].text, '新しい候補');
+});
+
+
+test('a live personal-context pointer is dropped when ctx=session did not send it', async () => {
+  const config = fresh('?ctx=session');
+  personalContext.loadFromObject({ places: [{ name: 'さくら台病院' }] });
+  const fragment = session.appendTurn({ speaker: 'person', text: 'さくら' });
+
+  expressive.setTransport(async () => ({
+    result: 'ok',
+    hypotheses: [{
+      text: 'さくら',
+      evidence: [{ source: 'personalContext', path: 'places[0]', excerpt: 'さくら台病院' }],
+    }],
+  }));
+
+  const result = await expressive.handleFragment(fragment, { config });
+  assert.equal(result.state, 'ready');
+  assert.equal(result.evidenceFailures[0].reason, 'not-sent-to-model');
+  assert.deepEqual(hints.getHintSnapshot().hypotheses[0].evidence, []);
 });
