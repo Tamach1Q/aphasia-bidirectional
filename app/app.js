@@ -7,6 +7,7 @@ import * as receptive from './pipelines/receptive.js';
 import * as expressive from './pipelines/expressive.js';
 import * as person from './views/person.js';
 import * as dom from './views/dom.js';
+import * as telemetry from './core/telemetry.js';
 
 (() => {
   const $ = dom.byId;
@@ -22,16 +23,45 @@ import * as dom from './views/dom.js';
       .catch((err) => console.warn('[002] personal context fixture not loaded', err));
   }
 
+  function setupResearchContextLoader() {
+    const research = new URLSearchParams(location.search).get('research') === '1';
+    if (!research) return;
+
+    const wrap = document.createElement('span');
+    wrap.className = 'research-context-loader';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'icon-button';
+    button.setAttribute('aria-label', '研究者用文脈JSONを読み込む');
+    button.textContent = '文脈';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.hidden = true;
+    button.addEventListener('click', () => input.click());
+    input.addEventListener('change', async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        await personalContext.loadFromFile(file);
+        dom.setStatus('研究者用の文脈をこの端末のメモリに読み込みました。');
+      } catch (err) {
+        dom.setStatus('文脈JSONを読み込めませんでした。');
+        console.warn('[002] researcher context load failed', err);
+      } finally {
+        input.value = '';
+      }
+    });
+    wrap.append(button, input);
+    document.querySelector('.topbar-buttons')?.prepend(wrap);
+  }
+
+  setupResearchContextLoader();
+
   if (config.inject) {
     inject.enable(true);
     window.__inject = inject;
     console.info('[002] injected transcript path enabled (?inject=1)');
-  }
-
-  function logLatency(kind, started, detail) {
-    const ms = Math.round(performance.now() - started);
-    console.info('[latency] ' + kind + ': ' + ms + 'ms', detail || '');
-    return ms;
   }
 
   function setSession(sessionActive = partnerSessionActive, micActive = partnerMicActive) {
@@ -51,14 +81,19 @@ import * as dom from './views/dom.js';
   const WORKER_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
 
   async function callWorker(body) {
-    const res = await fetch(WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) return { error: data.error || ('HTTP ' + res.status) };
-    return data;
+    const started = telemetry.now();
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return { error: data.error || ('HTTP ' + res.status) };
+      return data;
+    } finally {
+      telemetry.logLatency('worker:' + String(body?.op || 'legacy'), started);
+    }
   }
 
   receptive.setTransport(callWorker);
@@ -68,9 +103,7 @@ import * as dom from './views/dom.js';
   // only; views/person.js requires an explicit [ことばのヒント] tap before partner.js renders.
   intake.onTurn((turn) => {
     if (turn.speaker !== 'person') return;
-    const started = performance.now();
     expressive.handleFragment(turn, { config })
-      .then(() => logLatency('llm: expressive hypotheses', started, turn.text))
       .catch((err) => console.warn('[002] expressive pipeline failed', err));
   });
 
@@ -81,7 +114,7 @@ import * as dom from './views/dom.js';
     config,
     onStatus: dom.setStatus,
     onOption: () => dom.setStatus('返事を選びました。必要なら自分のことばを作れます。'),
-    onLatency: logLatency,
+    onLatency: telemetry.logLatency,
   });
 
   function stopPartnerRecognition() {
@@ -92,6 +125,13 @@ import * as dom from './views/dom.js';
     if (asr.isPartnerRunning()) return;
     if (!sessionStore.isActive()) sessionStore.startSession(config);
 
+    if (config.ai === 'off') {
+      setSession(true, false);
+      person.setTranscript('');
+      dom.setStatus('音声支援は使いません。文字で入力できます。');
+      return;
+    }
+
     setSession(true, true);
     dom.setStatus('相手の話を聞いています', true);
     person.setTranscript('聞いています…');
@@ -99,7 +139,7 @@ import * as dom from './views/dom.js';
     const { started, reason } = asr.startPartner({
       enabled: config.ai !== 'off',
       onError: (message) => dom.setStatus(message),
-      onLatency: logLatency,
+      onLatency: telemetry.logLatency,
     });
     if (started) return;
 
@@ -113,6 +153,7 @@ import * as dom from './views/dom.js';
   function stopListening() {
     expressive.reset();
     sessionStore.stopSession();
+    personalContext.clearPersonalContext();
     partnerSessionActive = false;
     partnerMicActive = false;
     stopPartnerRecognition();
@@ -157,6 +198,12 @@ import * as dom from './views/dom.js';
 
   function startExpressive() {
     pausePartnerListening();
+    if (config.ai === 'off') {
+      expressiveActive = false;
+      renderFragmentForm('', true);
+      dom.setStatus('音声支援は使いません。文字で入力してください。');
+      return;
+    }
     expressiveActive = true;
     $('speakButton').classList.add('recording');
     $('speakLabel').textContent = '終わる';
@@ -171,7 +218,7 @@ import * as dom from './views/dom.js';
       },
       onFinal: (fragment) => settlePersonCapture(fragment),
       onError: (message) => showExpressiveRecovery(message + ' 文字で入力するか、もう一度話してください。'),
-      onLatency: logLatency,
+      onLatency: telemetry.logLatency,
     });
 
     if (!started) {
@@ -227,6 +274,7 @@ import * as dom from './views/dom.js';
     stopPartnerRecognition();
     asr.stopExpressiveRecognition();
     sessionStore.stopSession();
+    personalContext.clearPersonalContext();
 
     partnerSessionActive = false;
     partnerMicActive = false;
