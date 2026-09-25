@@ -11,6 +11,7 @@
 // in here. worker/prompts/*.txt stays the single source of truth, so a prompt cannot drift
 // from the version the tests pin and the evaluation harness measured.
 import SIMPLIFY_PROMPT from './prompts/simplify.txt';
+import HYPOTHESES_PROMPT from './prompts/hypotheses.txt';
 
 const ALLOWED_ORIGINS = new Set([
   'https://tamach1q.github.io',
@@ -53,6 +54,7 @@ export default {
     // { text } -> { choices } contract, still served for the deployed app until T078
     // replaces the expressive half. Do not remove it before then.
     if (body?.op === 'simplify') return handleSimplify(body, env, headers);
+    if (body?.op === 'hypotheses') return handleHypotheses(body, env, headers);
 
     const text = String(body?.text || '').trim().slice(0, 500);
     if (!text) return json({ error: 'text is required' }, 400, headers);
@@ -182,4 +184,85 @@ async function callGemini({ model, prompt, schema, env }) {
     }
   }
   return { error: lastError || '不明なエラー' };
+}
+
+
+// ---------------------------------------------------------------- 002: op=hypotheses
+
+const HYPOTHESES_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    result: { type: 'STRING', enum: ['ok', 'unknown'] },
+    hypotheses: {
+      type: 'ARRAY',
+      minItems: 0,
+      maxItems: 3,
+      items: {
+        type: 'OBJECT',
+        properties: {
+          text: { type: 'STRING' },
+          evidence: {
+            type: 'ARRAY',
+            items: {
+              type: 'OBJECT',
+              properties: {
+                source: { type: 'STRING', enum: ['turn', 'confirmed', 'personalContext'] },
+                id: { type: 'STRING' },
+                path: { type: 'STRING' },
+                excerpt: { type: 'STRING' },
+              },
+              required: ['source', 'excerpt'],
+            },
+          },
+        },
+        required: ['text', 'evidence'],
+      },
+    },
+  },
+  required: ['result', 'hypotheses'],
+};
+
+function hypothesesPrompt(body) {
+  const show = (value) => value === undefined ? '(渡されていません)' : JSON.stringify(value, null, 2);
+  return HYPOTHESES_PROMPT
+    .replace('{{FRAGMENT}}', show(body.fragment))
+    .replace('{{SHORT_TERM}}', show(body.shortTerm))
+    .replace('{{CONFIRMED}}', show(body.confirmed))
+    .replace('{{PERSONAL_CONTEXT}}', show(body.personalContext));
+}
+
+async function handleHypotheses(body, env, headers) {
+  const fragment = body && body.fragment;
+  const id = String(fragment && fragment.id || '').trim();
+  const text = String(fragment && fragment.text || '').trim().slice(0, 500);
+  if (!id || !text) return json({ error: 'fragment {id,text} is required' }, 400, headers);
+
+  const clean = {
+    fragment: { id, text },
+  };
+  if (Array.isArray(body.shortTerm)) clean.shortTerm = body.shortTerm.slice(-6);
+  if (Array.isArray(body.confirmed)) clean.confirmed = body.confirmed;
+  if (body.personalContext && typeof body.personalContext === 'object') {
+    clean.personalContext = body.personalContext;
+  }
+
+  const model = env.HYPOTHESES_MODEL || env.GEMINI_MODEL || 'gemini-3.6-flash';
+  const result = await callGemini({
+    model,
+    prompt: hypothesesPrompt(clean),
+    schema: HYPOTHESES_SCHEMA,
+    env,
+  });
+  if (result.error) return json({ error: result.error }, 502, headers);
+
+  const hypotheses = Array.isArray(result.data.hypotheses)
+    ? result.data.hypotheses.slice(0, 3)
+    : [];
+  const outcome = result.data.result === 'ok' && hypotheses.length ? 'ok' : 'unknown';
+
+  return json({
+    op: 'hypotheses',
+    result: outcome,
+    hypotheses: outcome === 'ok' ? hypotheses : [],
+  }, 200, headers);
 }

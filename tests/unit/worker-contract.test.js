@@ -17,7 +17,8 @@ test('the legacy contract still works — the DEPLOYED build depends on it until
   // path is folded into `op=simplify`'s `options`. It survives because the currently
   // published site is the pre-T068 build and would lose its only AI feature the moment
   // this handler goes, while the Worker is deployed independently. T078 removes it.
-  assert.match(code, /body\?\.op === 'simplify'/, 'op dispatch must be explicit');
+  assert.match(code, /body\?\.op === 'simplify'/, 'simplify dispatch must be explicit');
+  assert.match(code, /body\?\.op === 'hypotheses'/, 'hypotheses dispatch must be explicit');
   assert.match(code, /choices/, 'the legacy response shape must still be produced');
   assert.match(code, /String\(body\?\.text \|\| ''\)/, 'the legacy text path must survive');
 });
@@ -26,6 +27,7 @@ test('prompts are imported, not pasted — one source of truth', () => {
   // Inlining would let the deployed prompt drift from the file the tests pin and the
   // Stage 0 evaluation measured.
   assert.match(code, /import SIMPLIFY_PROMPT from '\.\/prompts\/simplify\.txt'/);
+  assert.match(code, /import HYPOTHESES_PROMPT from '\.\/prompts\/hypotheses\.txt'/);
   assert.match(TOML, /type = "Text"/, 'wrangler must be configured for Text modules');
   assert.match(TOML, /globs = \["prompts\/\*\.txt"\]/);
 });
@@ -69,4 +71,13 @@ test('CORS stays restricted to an allowlist', () => {
   assert.match(code, /ALLOWED_ORIGINS/);
   assert.match(code, /'Access-Control-Allow-Origin'/);
   assert.match(code, /Origin not allowed/);
+});
+
+
+test('hypotheses permits zero through three candidates and unknown', () => {
+  assert.match(code, /HYPOTHESES_SCHEMA/);
+  assert.match(code, /minItems:\s*0/);
+  assert.match(code, /maxItems:\s*3/);
+  assert.match(code, /enum:\s*\['ok',\s*'unknown'\]/);
+  assert.match(code, /env\.HYPOTHESES_MODEL/);
 });
