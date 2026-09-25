@@ -64,6 +64,24 @@ export function loadFromObject(raw) {
   return context;
 }
 
+/**
+ * Researcher-only real-context path: read a JSON File selected on this device.
+ * The File object never becomes a URL and nothing is written to browser/server storage.
+ */
+export async function loadFromFile(file) {
+  if (!file || typeof file.text !== 'function') {
+    throw new Error('personal-context: a local JSON File is required');
+  }
+  const text = await file.text();
+  let raw;
+  try {
+    raw = JSON.parse(text);
+  } catch (_) {
+    throw new Error('personal-context: invalid JSON');
+  }
+  return loadFromObject(raw);
+}
+
 /** Null when nothing has been loaded — distinct from "loaded but empty". */
 export function getPersonalContext() {
   return context;
