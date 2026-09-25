@@ -91,3 +91,25 @@ test('the shipped sample fixture is well-formed and carries its warning note', (
     assert.ok(Array.isArray(SAMPLE[key]), `sample-01.json is missing ${key}`);
   }
 });
+
+
+test('real participant context can be loaded from a local File-like object in memory only', async () => {
+  pc.clearPersonalContext();
+  const file = {
+    async text() {
+      return JSON.stringify({ people: [{ name: '端末内だけの名前', relation: '家族' }] });
+    },
+  };
+  const loaded = await pc.loadFromFile(file);
+  assert.equal(loaded.people[0].name, '端末内だけの名前');
+  assert.equal(pc.hasPersonalContext(), true);
+});
+
+test('local File loading rejects invalid JSON without retaining it', async () => {
+  pc.clearPersonalContext();
+  await assert.rejects(
+    pc.loadFromFile({ async text() { return '{broken'; } }),
+    /invalid JSON/,
+  );
+  assert.equal(pc.hasPersonalContext(), false);
+});
