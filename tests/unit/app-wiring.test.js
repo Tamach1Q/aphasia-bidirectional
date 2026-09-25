@@ -35,3 +35,18 @@ test('session stop uses the full reset lifecycle rather than only stopping partn
     'stop must clear session data, person view state, hints, and in-flight recognition together',
   );
 });
+
+
+test('person-side capture can explicitly start the session before submitting a turn', () => {
+  assert.match(runtime, /function ensureSessionActive\s*\(\)[\s\S]*?sessionStore\.startSession\(config\)/);
+  assert.match(
+    runtime,
+    /function startExpressive\s*\(\)[\s\S]*?ensureSessionActive\(\);[\s\S]*?asr\.startExpressive\(/,
+    'spoken expressive capture must start a session before ASR can submit a final turn',
+  );
+  assert.match(
+    runtime,
+    /typedForm'[\s\S]*?ensureSessionActive\(\);[\s\S]*?intake\.submitTurn/,
+    'typed expressive capture must use the same session lifecycle',
+  );
+});

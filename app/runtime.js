@@ -78,6 +78,11 @@ export function boot() {
     dom.setBottomBar(true);
   }
 
+  function ensureSessionActive() {
+    if (!sessionStore.isActive()) sessionStore.startSession(config);
+    if (!partnerSessionActive) setSession(true, false);
+  }
+
   const WORKER_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
 
   async function callWorker(body) {
@@ -123,7 +128,7 @@ export function boot() {
 
   function beginListening() {
     if (asr.isPartnerRunning()) return;
-    if (!sessionStore.isActive()) sessionStore.startSession(config);
+    ensureSessionActive();
 
     if (config.ai === 'off') {
       setSession(true, false);
@@ -192,13 +197,17 @@ export function boot() {
   }
 
   function startExpressive() {
-    pausePartnerListening();
     if (config.ai === 'off') {
       expressiveActive = false;
       renderFragmentForm('', true);
       dom.setStatus('音声支援は使いません。文字で入力してください。');
       return;
     }
+
+    // A person's first spoken turn is also an explicit conversation start. Without this,
+    // ASR would submit into intake while session.appendTurn() has no active session.
+    ensureSessionActive();
+    pausePartnerListening();
     expressiveActive = true;
     $('speakButton').classList.add('recording');
     $('speakLabel').textContent = '終わる';
@@ -246,7 +255,7 @@ export function boot() {
       event.preventDefault();
       const text = $('fragmentInput').value.trim();
       if (!text) return;
-      if (!sessionStore.isActive()) sessionStore.startSession(config);
+      ensureSessionActive();
       lastFragment = text;
       intake.submitTurn({ speaker: 'person', text, source: 'typed' });
       renderIdle();

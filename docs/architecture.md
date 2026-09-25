@@ -90,6 +90,10 @@ personal context. This is a deliberate constraint from §5.4 / §18.
 
 One conversation session. Created on explicit start, discarded on stop or reload.
 
+**Start is about the conversation, not which speaker goes first.** Any explicit first capture action
+may create the session: partner listening, the person's spoken fragment, or submitting a typed
+fragment. Once created, both speakers' settled turns share the same context.
+
 **Stop is a full lifecycle boundary, not a microphone pause.** Ending the session clears the
 session store, researcher-loaded personal context, held hypotheses, person-view conversation state,
 and invalidates in-flight recognition / receptive responses so a late async result cannot restore
