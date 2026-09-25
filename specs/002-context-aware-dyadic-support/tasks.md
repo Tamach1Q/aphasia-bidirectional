@@ -242,17 +242,17 @@ states the meaning is not yet clear, and a partner-side action is offered.
 
 ### Tests for User Story 3
 
-- [ ] T090 [P] [US3] Write `tests/browser/unknown-path.test.html` — `f06` yields zero hypotheses, `hintStore.state === 'unknown'`, no error is surfaced (FR-015)
-- [ ] T091 [P] [US3] Write `tests/browser/all-suppressed.test.html` — when safety suppresses every candidate the result becomes `unknown` and the fallback renders, never a blank screen (FR-028)
-- [ ] T092 [P] [US3] Write `tests/unit/support-requests.test.js` — the four support requests are independently dispatchable and distinguishable (FR-031)
+- [x] T090 [P] [US3] Write `tests/browser/unknown-path.test.html` — `f06` yields zero hypotheses, `hintStore.state === 'unknown'`, no error is surfaced (FR-015)
+- [x] T091 [P] [US3] Write `tests/browser/all-suppressed.test.html` — when safety suppresses every candidate the result becomes `unknown` and the fallback renders, never a blank screen (FR-028)
+- [x] T092 [P] [US3] Write `tests/unit/support-requests.test.js` — the four support requests are independently dispatchable and distinguishable (FR-031)
 
 ### Implementation for User Story 3
 
-- [ ] T093 [US3] Implement the `unknown` rendering in `app/views/partner.js` — state plainly that meaning is not yet clear (FR-015)
-- [ ] T094 [US3] Implement the fallback in `app/views/partner.js` offering at least one PARTNER-side action (change the question), not only person-side retry (FR-033)
-- [ ] T095 [P] [US3] Implement the four support requests in `app/views/person.js` — もう一回 / ゆっくり / 短く / ちがう, kept distinguishable and never collapsed into one generic control (FR-031, §14)
-- [ ] T096 [US3] Audit every UI string in `app/views/person.js`, `app/views/partner.js` and `app/index.html`; remove any that states or implies the person's speech was not understood, and ensure failure is not displayed as a persistent status (FR-032)
-- [ ] T097 [US3] Delete `showDontUnderstand` and the 「わかりません」 control (`app/app.js:70,84-90`), 「どれも違います」 in its old role (`app/app.js:177,185`), and the old `showFallback` wording (`app/app.js:241`)
+- [x] T093 [US3] Implement the `unknown` rendering in `app/views/partner.js` — state plainly that meaning is not yet clear (FR-015)
+- [x] T094 [US3] Implement the fallback in `app/views/partner.js` offering at least one PARTNER-side action (change the question), not only person-side retry (FR-033)
+- [x] T095 [P] [US3] Implement the four support requests in `app/views/person.js` — もう一回 / ゆっくり / 短く / ちがう, kept distinguishable and never collapsed into one generic control (FR-031, §14)
+- [x] T096 [US3] Audit every UI string in `app/views/person.js`, `app/views/partner.js` and `app/index.html`; remove any that states or implies the person's speech was not understood, and ensure failure is not displayed as a persistent status (FR-032)
+- [x] T097 [US3] Delete `showDontUnderstand` and the 「わかりません」 control (`app/app.js:70,84-90`), 「どれも違います」 in its old role (`app/app.js:177,185`), and the old `showFallback` wording (`app/app.js:241`)
 
 **Checkpoint**: the uncertainty path is as well built as the success path.
 
