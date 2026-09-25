@@ -1,8 +1,15 @@
 {
   "task": "002-context-aware-dyadic-support",
-  "stage": "product",
-  "status": "ready_for_coding",
+  "stage": "coding",
+  "status": "in_progress",
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
-  "constitution_min_version": "1.2.0"
+  "constitution_min_version": "1.2.0",
+  "phase": "Phase 2 complete — Phase 3 (US-1) next",
+  "stages_complete": ["0", "1", "2", "3", "4"],
+  "next_task": "T057",
+  "tasks_complete": 59,
+  "tasks_total": 123,
+  "unit_tests_passing": 131,
+  "updated": "2026-09-25"
 }

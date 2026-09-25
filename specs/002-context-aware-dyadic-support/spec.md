@@ -182,6 +182,16 @@ The person produces a fragment. The partner does not know what it means.
 - **FR-027**: The safety layer MUST check: negation/affirmation, person/subject, time,
   number/quantity, action, medication, and consent/refusal. Polarity reversal is the severe case.
   (§17, §17.1)
+- **FR-027a**: Each check MUST be applied only where it is semantically valid for what the output
+  claims to be. A restatement (`op=simplify`) may not introduce a number or a day that was not
+  said; an interpretation (`op=hypotheses`) exists to propose exactly that, so those checks do not
+  apply to it. Polarity, action, medication and consent apply to both — inverting an instruction or
+  asserting agreement is never legitimate. An unspecified mode MUST default to the stricter one.
+  (§A6.1)
+- **FR-027b**: For `interpret` mode, the grounding source MUST be everything the model was actually
+  given for that request — the fragment, the recent turns, the confirmed session meaning, and the
+  personal context when enabled. Checking against a narrower source would report a candidate
+  grounded in confirmed context as invented. (§A6.1)
 - **FR-028**: A candidate failing a safety check MUST be suppressed, never silently repaired. If all
   candidates are suppressed, the result MUST become the unknown/fallback path. (§17.2)
 - **FR-029**: The safety check MUST NOT be performed by another call to the model that generated the
@@ -336,3 +346,12 @@ component they name.
   FR-005.
 - **OQ-9** Icon and image asset source and licensing (§22) — blocks FR-036.
 - **OQ-10** Safety rule calibration and acceptable false-positive rate (§A6.3) — blocks FR-027.
+  *Measured 2026-09-24: 43.6% → 0.0% after three design fixes (research.md §9). Small sample;
+  re-measure on Stage 5 output.*
+- **OQ-11** Exact grounding source for `interpret` safety (FR-027b) — blocks Stage 6 (T077), not
+  US-1. The calibration harness currently passes `shortTerm + fragment` as the source and hands
+  `confirmed` / `personalContext` separately as context. That is adequate for the checks as written,
+  but a case like confirmed 「今日は薬を飲まない」 + fragment 「それ」 + hypothesis 「今日は薬を
+  飲まない」 would read as *negation added* if `confirmed` is not part of the grounding source.
+  Decide before wiring the real pipeline: either fold the whole request body into the source, or
+  ground on the verified evidence the hypothesis actually cites.

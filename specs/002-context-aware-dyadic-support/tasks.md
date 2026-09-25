@@ -34,13 +34,13 @@ deployed. Development serves the repository root; deployment serves `app/` alone
 
 **Purpose**: module skeleton and test scaffolding. No behaviour yet.
 
-- [ ] T001 Create the module directory skeleton per plan.md: `app/core/`, `app/capture/`, `app/pipelines/`, `app/safety/checks/`, `app/evidence/`, `app/views/`, `app/icons/`, `app/context/`, `app/fixtures/`
-- [ ] T002 [P] Convert `app/index.html` to load `app/app.js` with `type="module"` and verify the page still renders
-- [ ] T003 [P] Create `tests/unit/` with a trivial passing `node --test` file to confirm the runner works with zero dependencies
-- [ ] T004 [P] Create `tests/browser/index.html` as an empty harness page that loads modules from `../../app/`
-- [ ] T005 [P] Create `app/context/sample-01.json` — a SYNTHETIC personal-context fixture per data-model.md §4 (strict JSON, no comments possible)
-- [ ] T005a [P] Create `app/context/README.md` warning that this directory is publicly served and may hold synthetic fixtures ONLY — no real participant name, place, appointment or utterance (FR-005). Mirror the same warning in `app/fixtures/README.md`
-- [ ] T006 [P] Add `tools/` to the repository with a README stating it is never deployed
+- [x] T001 Create the module directory skeleton per plan.md: `app/core/`, `app/capture/`, `app/pipelines/`, `app/safety/checks/`, `app/evidence/`, `app/views/`, `app/icons/`, `app/context/`, `app/fixtures/`
+- [x] T002 [P] Convert `app/index.html` to load `app/app.js` with `type="module"` and verify the page still renders
+- [x] T003 [P] Create `tests/unit/` with a trivial passing `node --test` file to confirm the runner works with zero dependencies
+- [x] T004 [P] Create `tests/browser/index.html` as an empty harness page that loads modules from `../../app/`
+- [x] T005 [P] Create `app/context/sample-01.json` — a SYNTHETIC personal-context fixture per data-model.md §4 (strict JSON, no comments possible)
+- [x] T005a [P] Create `app/context/README.md` warning that this directory is publicly served and may hold synthetic fixtures ONLY — no real participant name, place, appointment or utterance (FR-005). Mirror the same warning in `app/fixtures/README.md`
+- [x] T006 [P] Add `tools/` to the repository with a README stating it is never deployed
 
 **Checkpoint**: page loads as modules, `node --test` runs, directories exist.
 
@@ -63,79 +63,79 @@ Worker secret.
 Fixtures are authored against [contracts/injected-transcript.md](./contracts/injected-transcript.md)
 so they become the regression suite, not throwaway scripts.
 
-- [ ] T007 [P] Author `app/fixtures/f01-simple-question.json` — short simple utterance; `expect.gate: "skip"` (proves zero network calls)
-- [ ] T008 [P] Author `app/fixtures/f02-conditional-instruction.json` — condition plus two actions; annotate `expect.preserve: ["condition","action"]`
-- [ ] T009 [P] Author `app/fixtures/f03-multi-entity.json` — several times, numbers and a place in one utterance; annotate `expect.preserve: ["number","time"]`
-- [ ] T010 [P] Author `app/fixtures/f04-negation.json` — contains a negated instruction; annotate `expect.preserve: ["negation"]`
-- [ ] T011 [P] Author `app/fixtures/f05-fragment-answerable.json` — fragment answerable from the preceding turn
-- [ ] T012 [P] Author `app/fixtures/f06-fragment-unanswerable.json` — genuinely underdetermined fragment; `expect.hypotheses: {min: 0, max: 0}`. **The correct answer is zero**
-- [ ] T013 [P] Author `app/fixtures/f07-fragment-with-personal-context.json` — resolvable only with personal context
-- [ ] T014 [P] Author `app/fixtures/f08-anchoring-trap.json` — personal context that is plausible but WRONG for this fragment; annotate the reading that must NOT be produced
-- [ ] T015 [P] Draft `worker/prompts/simplify.txt` per contracts/worker-api.md "Prompt requirements" — preserve condition, negation, number, person, action; never add absent information; prefer dropping decorative wording over a decision-relevant element
-- [ ] T016 [P] Draft `worker/prompts/hypotheses.txt` — must state that returning ZERO hypotheses is a correct outcome when underdetermined (the single most important instruction), that every hypothesis must cite input actually used, that personal context is background and not an answer key, and that the fragment's literal words may be substitutions for adjacent ones
-- [ ] T017 Enumerate candidate models in `tools/list-models.mjs`: query the API's model-listing endpoint, filter to STABLE Flash-tier only, exclude preview/experimental/deprecated ids, cap at 3 per operation; write the resulting list into `specs/002-context-aware-dyadic-support/research.md` §2
-- [ ] T018 Build `tools/model-eval.mjs` — a standalone harness that reads `app/fixtures/*.json` and `worker/prompts/*`, calls each candidate model directly, and scores against the fixtures' pre-written `expect` annotations. It MUST NOT import from `app/`; it is an evaluation tool, not app code
-- [ ] T018a Assign fixture turn ids deterministically in `tools/model-eval.mjs` (`turns[0] → t1`, `turns[1] → t2`, …) and build the request in the id-bearing shape from contracts/worker-api.md, so evidence pointers are resolvable and a rerun produces byte-identical requests
-- [ ] T018b Persist every raw model response under a gitignored run directory, keyed by model × fixture × attempt, so the rubric pass in T020 reads actual output rather than a summary
-- [ ] T019 Implement simplify scoring in `tools/model-eval.mjs`: latency (median and worst of N), meaning preservation against `expect.preserve`, over-reduction (any annotated decision-relevant element dropped = failure), schema-valid response rate
-- [ ] T020 Implement hypotheses scoring in `tools/model-eval.mjs`, **split by what can be judged mechanically**:
+- [x] T007 [P] Author `app/fixtures/f01-simple-question.json` — short simple utterance; `expect.gate: "skip"` (proves zero network calls)
+- [x] T008 [P] Author `app/fixtures/f02-conditional-instruction.json` — condition plus two actions; annotate `expect.preserve: ["condition","action"]`
+- [x] T009 [P] Author `app/fixtures/f03-multi-entity.json` — several times, numbers and a place in one utterance; annotate `expect.preserve: ["number","time"]`
+- [x] T010 [P] Author `app/fixtures/f04-negation.json` — contains a negated instruction; annotate `expect.preserve: ["negation"]`
+- [x] T011 [P] Author `app/fixtures/f05-fragment-answerable.json` — fragment answerable from the preceding turn
+- [x] T012 [P] Author `app/fixtures/f06-fragment-unanswerable.json` — genuinely underdetermined fragment; `expect.hypotheses: {min: 0, max: 0}`. **The correct answer is zero**
+- [x] T013 [P] Author `app/fixtures/f07-fragment-with-personal-context.json` — resolvable only with personal context
+- [x] T014 [P] Author `app/fixtures/f08-anchoring-trap.json` — personal context that is plausible but WRONG for this fragment; annotate the reading that must NOT be produced
+- [x] T015 [P] Draft `worker/prompts/simplify.txt` per contracts/worker-api.md "Prompt requirements" — preserve condition, negation, number, person, action; never add absent information; prefer dropping decorative wording over a decision-relevant element
+- [x] T016 [P] Draft `worker/prompts/hypotheses.txt` — must state that returning ZERO hypotheses is a correct outcome when underdetermined (the single most important instruction), that every hypothesis must cite input actually used, that personal context is background and not an answer key, and that the fragment's literal words may be substitutions for adjacent ones
+- [x] T017 Enumerate candidate models in `tools/list-models.mjs`: query the API's model-listing endpoint, filter to STABLE Flash-tier only, exclude preview/experimental/deprecated ids, cap at 3 per operation; write the resulting list into `specs/002-context-aware-dyadic-support/research.md` §2
+- [x] T018 Build `tools/model-eval.mjs` — a standalone harness that reads `app/fixtures/*.json` and `worker/prompts/*`, calls each candidate model directly, and scores against the fixtures' pre-written `expect` annotations. It MUST NOT import from `app/`; it is an evaluation tool, not app code
+- [x] T018a Assign fixture turn ids deterministically in `tools/model-eval.mjs` (`turns[0] → t1`, `turns[1] → t2`, …) and build the request in the id-bearing shape from contracts/worker-api.md, so evidence pointers are resolvable and a rerun produces byte-identical requests
+- [x] T018b Persist every raw model response under a gitignored run directory, keyed by model × fixture × attempt, so the rubric pass in T020 reads actual output rather than a summary
+- [x] T019 Implement simplify scoring in `tools/model-eval.mjs`: latency (median and worst of N), meaning preservation against `expect.preserve`, over-reduction (any annotated decision-relevant element dropped = failure), schema-valid response rate
+- [x] T020 Implement hypotheses scoring in `tools/model-eval.mjs`, **split by what can be judged mechanically**:
   - **automated**: 0–3 schema adherence, `result` correctness, restraint on f06 (any hypothesis = failure, never a near-miss), evidence-pointer validity against the deterministic fixture ids, latency
   - **rubric, over raw output**: meaning preservation, polarity reversal, and anchoring on f08. `mustNotProduce` substring matching is a *screen*, not a verdict — 「薬を服用してください」 evades the f04 list and 「10時の通院予定」 evades f08's while meaning exactly what the fixture forbids. The harness MUST therefore persist every raw response for review against a written rubric. At 3 candidates × 8 fixtures this is a tractable read, and it is the only way the two fixtures that carry the most weight are scored on meaning rather than on wording
-- [ ] T021 Run the simplify evaluation and write the results table to `research.md` §2
-- [ ] T022 Run the hypotheses evaluation and write the results table to `research.md` §2
-- [ ] T023 Apply the decision rule from research.md §2 and record a one-line decision PER OPERATION in `research.md` §2 — including "baseline retained" as a valid, recorded outcome
-- [ ] T024 Add per-operation model configuration to `worker/wrangler.toml` (e.g. `SIMPLIFY_MODEL`, `HYPOTHESES_MODEL`) **without touching the live legacy path**. The deployed Worker still serves the old `{text} → {choices}` contract until T063/T078 land, so `GEMINI_MODEL` and the existing handler MUST keep working; removal of the constant belongs in T063/T078
-- [ ] T025 Record the measured latencies in `research.md` §7 as the input to setting the OQ-7 ceiling
+- [x] T021 Run the simplify evaluation and write the results table to `research.md` §2
+- [x] T022 Run the hypotheses evaluation and write the results table to `research.md` §2
+- [x] T023 Apply the decision rule from research.md §2 and record a one-line decision PER OPERATION in `research.md` §2 — including "baseline retained" as a valid, recorded outcome
+- [x] T024 Add per-operation model configuration to `worker/wrangler.toml` (e.g. `SIMPLIFY_MODEL`, `HYPOTHESES_MODEL`) **without touching the live legacy path**. The deployed Worker still serves the old `{text} → {choices}` contract until T063/T078 land, so `GEMINI_MODEL` and the existing handler MUST keep working; removal of the constant belongs in T063/T078
+- [x] T025 Record the measured latencies in `research.md` §7 as the input to setting the OQ-7 ceiling
 
 **Checkpoint**: OQ-6 closed with evidence. Stage 5 unblocked.
 
 ### Stage 1 — Context store
 
-- [ ] T026 [P] Implement `app/core/session.js` — `Session`, `Turn` ring buffer with `MAX_TURNS = 6`, per data-model.md §1–§2
-- [ ] T027 [P] Implement `app/core/personal-context.js` — read-only loader, in-memory only, no setter and no storage API call anywhere in the module (data-model.md §4)
-- [ ] T028 Implement the single-writer `confirmSelected()` mutator in `app/core/session.js` as the ONLY path that appends to `confirmed`. It accepts no UI-supplied text and builds `Confirmed {text, basis}` from the trusted snapshot passed by `app/views/partner.js`, so `session.js` never imports the hint store (FR-003, data-model.md §3, §8)
-- [ ] T029 Implement `Config` parsing and freezing in `app/core/session.js` per data-model.md §6
-- [ ] T030 [P] Write `tests/unit/session.test.js` — ring buffer bounds at MAX_TURNS; eviction is oldest-first; interim text never creates a Turn; `confirmed` is unwritable except through `confirmSelected`; `session.js` imports nothing from `core/hint-store.js`; `config` is frozen after start
-- [ ] T031 [P] Write `tests/unit/personal-context.test.js` — no mutation path exists; grep-level assertion that the module references no `localStorage`/`indexedDB`/`document.cookie`; `?config=` resolves only under `app/context/`
-- [ ] T032 Wire `app/app.js` to `app/core/session.js` **alongside** the existing flat `state` object. **Do NOT delete `app/app.js:4` yet** — ~100 references to `state.*` remain in the superseded expressive flow, which is not removed until T086/T087. Deleting it here would break the running app and contradict plan.md's "app stays runnable throughout"
+- [x] T026 [P] Implement `app/core/session.js` — `Session`, `Turn` ring buffer with `MAX_TURNS = 6`, per data-model.md §1–§2
+- [x] T027 [P] Implement `app/core/personal-context.js` — read-only loader, in-memory only, no setter and no storage API call anywhere in the module (data-model.md §4)
+- [x] T028 Implement the single-writer `confirmSelected()` mutator in `app/core/session.js` as the ONLY path that appends to `confirmed`. It accepts no UI-supplied text and builds `Confirmed {text, basis}` from the trusted snapshot passed by `app/views/partner.js`, so `session.js` never imports the hint store (FR-003, data-model.md §3, §8)
+- [x] T029 Implement `Config` parsing and freezing in `app/core/session.js` per data-model.md §6
+- [x] T030 [P] Write `tests/unit/session.test.js` — ring buffer bounds at MAX_TURNS; eviction is oldest-first; interim text never creates a Turn; `confirmed` is unwritable except through `confirmSelected`; `session.js` imports nothing from `core/hint-store.js`; `config` is frozen after start
+- [x] T031 [P] Write `tests/unit/personal-context.test.js` — no mutation path exists; grep-level assertion that the module references no `localStorage`/`indexedDB`/`document.cookie`; `?config=` resolves only under `app/context/`
+- [x] T032 Wire `app/app.js` to `app/core/session.js` **alongside** the existing flat `state` object. **Do NOT delete `app/app.js:4` yet** — ~100 references to `state.*` remain in the superseded expressive flow, which is not removed until T086/T087. Deleting it here would break the running app and contradict plan.md's "app stays runnable throughout"
 
 ### Stage 2 — Injected transcript path (FR-043)
 
-- [ ] T033 Implement `app/capture/inject.js` with `turn()`, `interim()`, `fixture()`, `reset()` per contracts/injected-transcript.md
-- [ ] T034 Gate `inject.js` behind `?inject=1` or the test page so it is unreachable in a participant session (contracts/injected-transcript.md "Availability")
-- [ ] T035 Build the fixture player in `app/capture/inject.js` — load `app/fixtures/<name>.json` and play turns in order
-- [ ] T036 [P] Write `tests/unit/inject.test.js` — an injected turn is indistinguishable from an ASR turn once inside `session`; no pipeline branches on `source: 'injected'`
-- [ ] T037 Wire `tests/browser/index.html` to drive `app/capture/inject.js` so downstream stages become testable without a microphone
+- [x] T033 Implement `app/capture/inject.js` with `turn()`, `interim()`, `fixture()`, `reset()` per contracts/injected-transcript.md
+- [x] T034 Gate `inject.js` behind `?inject=1` or the test page so it is unreachable in a participant session (contracts/injected-transcript.md "Availability")
+- [x] T035 Build the fixture player in `app/capture/inject.js` — load `app/fixtures/<name>.json` and play turns in order
+- [x] T036 [P] Write `tests/unit/inject.test.js` — an injected turn is indistinguishable from an ASR turn once inside `session`; no pipeline branches on `source: 'injected'`
+- [x] T037 Wire `tests/browser/index.html` to drive `app/capture/inject.js` so downstream stages become testable without a microphone
 
 **Checkpoint**: fixtures can be played into the system with no audio. Everything after this is testable.
 
 ### Stage 3 — Session and ASR
 
-- [ ] T038 Extract both recognition modes into `app/capture/asr.js` from `app/app.js:104-117,139-152` — continuous partner mode and one-shot expressive mode, `ja-JP`
-- [ ] T039 Carry the generation counters (`app/app.js:66,93,110,123,142`) into `app/capture/asr.js` as the stale-response guard, preserving the existing cancellation semantics
-- [ ] T040 Move session start/stop and state display from `app/app.js:15,104,118` into `app/capture/asr.js` + `app/core/session.js`
-- [ ] T041 Carry pause/resume partner listening (`app/app.js:17,18`) into `app/capture/asr.js`
-- [ ] T042 [P] Carry the non-blaming ASR error wording (`app/app.js:16`) into `app/capture/asr.js` unchanged
-- [ ] T043 [P] Write `tests/unit/asr-state.test.js` — start/stop transitions; a stale generation result is discarded; **`?ai=off` never constructs a recognition object** (FR-039)
+- [x] T038 Extract both recognition modes into `app/capture/asr.js` from `app/app.js:104-117,139-152` — continuous partner mode and one-shot expressive mode, `ja-JP`
+- [x] T039 Carry the generation counters (`app/app.js:66,93,110,123,142`) into `app/capture/asr.js` as the stale-response guard, preserving the existing cancellation semantics
+- [x] T040 Move session start/stop and state display from `app/app.js:15,104,118` into `app/capture/asr.js` + `app/core/session.js`
+- [x] T041 Carry pause/resume partner listening (`app/app.js:17,18`) into `app/capture/asr.js`
+- [x] T042 [P] Carry the non-blaming ASR error wording (`app/app.js:16`) into `app/capture/asr.js` unchanged
+- [x] T043 [P] Write `tests/unit/asr-state.test.js` — start/stop transitions; a stale generation result is discarded; **`?ai=off` never constructs a recognition object** (FR-039)
 
 ### Stage 4 — Safety layer skeleton
 
 **Built before any pipeline that displays model output.** Stub individual checks if needed, but the
 skeleton must exist so no display path is ever wired around it.
 
-- [ ] T044 Implement `app/safety/index.js` exporting the pure function `check(candidateText, sourceText, context) → {ok, violations[]}` per data-model.md §9
-- [ ] T045 [P] Implement `app/safety/checks/polarity.js` — added or dropped negation is a violation
-- [ ] T046 [P] Implement `app/safety/checks/person.js` — invented or swapped subject
-- [ ] T047 [P] Implement `app/safety/checks/time.js` — changed or invented temporal expression
-- [ ] T048 [P] Implement `app/safety/checks/number.js` — changed or invented numeral/counter
-- [ ] T049 [P] Implement `app/safety/checks/action.js` — inverted action class (stop↔continue, go↔cancel)
-- [ ] T050 [P] Implement `app/safety/checks/medication.js` — drug name or dose absent from source
-- [ ] T051 [P] Implement `app/safety/checks/consent.js` — agreement vs declination inversion
-- [ ] T052 Implement suppression semantics in `app/safety/index.js` — a failing candidate is suppressed and NEVER rewritten; if all candidates fail the result becomes `unknown` (FR-028)
-- [ ] T053 [P] Write `tests/unit/safety-polarity.test.js` — `薬 飲まない` → any output asserting `薬を飲む` is a violation; dropped negation is a violation
-- [ ] T054 [P] Write `tests/unit/safety-checks.test.js` — invented number, swapped subject, changed time, inverted action, invented medication each violate
-- [ ] T055 [P] Write `tests/unit/safety-contract.test.js` — `check()` is pure, makes no network call (FR-029), and never returns a modified candidate
-- [ ] T056 Record the measured false-positive rate against the fixtures in `research.md` §9 (OQ-10)
+- [x] T044 Implement `app/safety/index.js` exporting the pure function `check(candidateText, sourceText, context) → {ok, violations[]}` per data-model.md §9
+- [x] T045 [P] Implement `app/safety/checks/polarity.js` — added or dropped negation is a violation
+- [x] T046 [P] Implement `app/safety/checks/person.js` — invented or swapped subject
+- [x] T047 [P] Implement `app/safety/checks/time.js` — changed or invented temporal expression
+- [x] T048 [P] Implement `app/safety/checks/number.js` — changed or invented numeral/counter
+- [x] T049 [P] Implement `app/safety/checks/action.js` — inverted action class (stop↔continue, go↔cancel)
+- [x] T050 [P] Implement `app/safety/checks/medication.js` — drug name or dose absent from source
+- [x] T051 [P] Implement `app/safety/checks/consent.js` — agreement vs declination inversion
+- [x] T052 Implement suppression semantics in `app/safety/index.js` — a failing candidate is suppressed and NEVER rewritten; if all candidates fail the result becomes `unknown` (FR-028)
+- [x] T053 [P] Write `tests/unit/safety-polarity.test.js` — `薬 飲まない` → any output asserting `薬を飲む` is a violation; dropped negation is a violation
+- [x] T054 [P] Write `tests/unit/safety-checks.test.js` — invented number, swapped subject, changed time, inverted action, invented medication each violate
+- [x] T055 [P] Write `tests/unit/safety-contract.test.js` — `check()` is pure, makes no network call (FR-029), and never returns a modified candidate
+- [x] T056 Record the measured false-positive rate against the fixtures in `research.md` §9 (OQ-10)
 
 **Checkpoint**: Foundation complete. User story work may begin.
 

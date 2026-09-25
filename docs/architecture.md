@@ -282,11 +282,16 @@ fragment captured  ── NO mandatory review step (§12.2)
 append turn (speaker:'person')
       ↓
 Worker: op='hypotheses'
-   input: fragment + turns + confirmed + personalContext
+   input: fragment{id,text} + turns[{id,…}] + confirmed[{id,…}] + personalContext
       ↓
-safety layer (§A6) — filters candidates
+safety layer (§A6), mode='interpret'
+   suppresses a candidate; all suppressed ──▶ unknown
       ↓
-hintStore.set(...)          ◀── HELD. Nothing renders. (§20.2)
+evidence verification (§A5.3)
+   each pointer resolved against the live session;
+   an unverifiable pointer is DROPPED, the hypothesis SURVIVES
+      ↓
+setHypotheses(...) / setUnknown(...)   ◀── HELD. Nothing renders. (§20.2)
       ↓
           … conversation continues normally …
       ↓
@@ -456,26 +461,56 @@ Worker response ──▶ safety.check(candidate, source) ──▶ pass ──�
 Applies to: receptive simplification output, expressive hypotheses, and (Phase 2) final-sentence
 rendering.
 
-### A6.1 Checks are local and deterministic
+### A6.1 Two modes — what the output CLAIMS decides which checks apply
 
 ```js
-safety.check(candidateText, sourceText, context) → { ok, violations: [String] }
+safety.check(candidateText, sourceText, { mode, confirmed, personalContext })
+  → { ok, violations: [{ check, detail }] }
 ```
 
-| Check | Method |
-|---|---|
-| negation / affirmation | polarity markers in source vs candidate; any added or dropped negation is a violation |
-| person / subject | persons named or implied in source vs candidate; an invented or swapped subject is a violation |
-| time | temporal expressions in source/context vs candidate |
-| number / quantity | numerals and counters; a changed or invented number is a violation |
-| action | action verb class; stop↔continue, go↔cancel and similar inversions |
-| medication | drug names or doses not present in source |
-| consent / refusal | agreement vs declination markers |
+The two pipelines make different claims about their output, so they cannot be checked by the same
+rules.
+
+| Mode | Used by | The claim | Consequence |
+|---|---|---|---|
+| `restate` | `op=simplify` | *this says the same thing, more simply* | introducing a number or a day is fabrication |
+| `interpret` | `op=hypotheses` | *this is a possible reading of a fragment* | proposing one is the product working |
+
+This is not an implementation detail; it is the safety model. A hypothesis exists to propose what
+the source does not state literally — resolving 「じゅう」 to 10時, or 「さくら」 to さくら台病院. A
+layer that treats that as fabrication suppresses the feature itself.
+
+| Check | Applies in | Method |
+|---|---|---|
+| polarity | **both** | negation PRESENT in source vs candidate. Any appearance or disappearance is a violation |
+| person | **both** | a person in neither the source nor personal context has been invented |
+| person — subject swap | `restate` only | when both texts mark a doer with が/は and the candidate's doer was a non-subject in the source |
+| action | **both** | stop↔continue, go↔cancel and similar inversions expressed *without* negation |
+| medication | **both** | a dose, or medication itself, not present in the source |
+| consent | **both** | agreement or refusal asserted where the source asserted none, or reversed |
+| time | `restate` only | a day or part-of-day not in the source or in confirmed context |
+| number | `restate` only | a numeral not in the source, after clock and list-marker canonicalisation |
+
+An unspecified mode defaults to `restate` — the stricter one, which is the safe direction to be
+wrong in.
+
+Why the subject-swap rule is `restate`-only: a hypothesis is the *person's* meaning answering the
+partner, so a subject differing from the question's subject is normal
+(「娘さんが行くんですか？」 → 「私が行きます」).
 
 **Architectural constraint: the safety check must not be another call to the model that produced the
 candidate.** A model that inverted a polarity will not reliably notice that it did. Phase 1 uses
 local rule-based checks only, with no second network call. This also keeps the check on the critical
 path without adding latency.
+
+#### Known gaps, recorded rather than implied
+
+- **Negation relocation is not caught.** 「薬を飲まないで、電話して」 → 「薬を飲んで、電話しないで」
+  keeps one negation and passes. Counting instead of detecting does not help — the count is also 1
+  — and it suppresses correct structured output that restates the same prohibition twice. Catching
+  relocation needs clause alignment, which Phase 1 does not attempt.
+- **An omitted subject cannot be compared.** The swap rule fires only when both texts mark a doer
+  explicitly. Guessing at an implied one would suppress correct output.
 
 ### A6.2 Failure behaviour (§17.2)
 

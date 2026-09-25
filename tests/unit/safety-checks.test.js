@@ -78,6 +78,55 @@ test('person: a relation from personal context is legitimate', () => {
   assert.equal(person.check('娘が来ます。', 'みどり 来る', ctx).ok, true);
 });
 
+// --- subject swap ---------------------------------------------------------------
+
+test('person: a SUBJECT SWAP is caught — same words, different plan', () => {
+  // Both 娘 and 私 appear in the source, so the invented-person rule sees nothing wrong.
+  // Who is doing the taking has nevertheless been reversed.
+  const r = person.check(
+    '私が娘を病院へ連れていきます',
+    '娘が私を病院へ連れていきます',
+    { mode: 'restate' },
+  );
+  assert.equal(r.ok, false, 'a reversed subject must not pass');
+  assert.match(r.detail, /subject swapped/);
+});
+
+test('person: the same subject reworded passes', () => {
+  assert.equal(
+    person.check('娘が病院へ行きます', '娘が病院に行きます', { mode: 'restate' }).ok,
+    true,
+  );
+});
+
+test('person: spelling variants of self are one person, not two', () => {
+  // わたし and 私 must not read as a swap.
+  assert.equal(
+    person.check('わたしが娘を連れていきます', '私が娘を連れていきます', { mode: 'restate' }).ok,
+    true,
+  );
+});
+
+test('person: swap detection is RESTATE only — a hypothesis may have its own subject', () => {
+  // A hypothesis is the PERSON's meaning answering the partner. A subject differing from
+  // the question's subject is normal, and suppressing it would suppress the feature.
+  const args = ['私が行きます', '娘さんが行くんですか？ …わたし…'];
+  assert.equal(person.check(...args, { mode: 'interpret' }).ok, true);
+});
+
+test('person: an omitted subject is a known limitation, not a violation', () => {
+  // The source marks no doer, so there is nothing to compare. Guessing would suppress
+  // correct output; the invented-person rule still applies.
+  assert.equal(person.check('娘が行きます', '娘 明日 病院', { mode: 'restate' }).ok, true);
+  assert.equal(person.check('私が行きます', '娘 明日 病院', { mode: 'restate' }).ok, false,
+    '私 was never mentioned — the invented-person rule still fires');
+});
+
+test('person: subject and non-subject marking is distinguished', () => {
+  assert.deepEqual([...person.__subjects('娘が私を連れていく')], ['娘']);
+  assert.deepEqual([...person.__nonSubjects('娘が私を連れていく')], ['私']);
+});
+
 // --- time ------------------------------------------------------------------------
 
 test('time: an invented day is caught', () => {
