@@ -39,6 +39,8 @@ let lastPartnerTurn = null;
 let lastPersonTurn = null;
 
 let counter = 0;
+/** Invalidates any async receptive result that was started before reset/session end. */
+let lifecycleGeneration = 0;
 let hooks = {};
 let runtime = { aiEnabled: true, receptiveEnabled: true };
 
@@ -118,6 +120,7 @@ export function setTranscript(text) {
  * @param {{force?: boolean}} [options] `force` is `[短く]` (FR-009)
  */
 export async function handlePartnerTurn(turn, options = {}) {
+  const generation = lifecycleGeneration;
   lastPartnerTurn = turn;
   renderSupport();
   if (runtime.aiEnabled) setTranscript(turn?.text || '');
@@ -129,6 +132,7 @@ export async function handlePartnerTurn(turn, options = {}) {
     aiEnabled: runtime.aiEnabled,
     receptiveEnabled: runtime.receptiveEnabled,
   });
+  if (generation !== lifecycleGeneration) return result;
   if (hooks.onLatency && result.skipped !== 'gated-out' && result.skipped !== 'ai-off') {
     hooks.onLatency('llm: receptive simplification', started, turn?.text);
   }
@@ -451,6 +455,7 @@ export function showConfirmation() {
 // ---------------------------------------------------------------- lifecycle
 
 export function reset() {
+  lifecycleGeneration += 1;
   entries = [];
   nodes.clear();
   if (els) els.settled.replaceChildren();

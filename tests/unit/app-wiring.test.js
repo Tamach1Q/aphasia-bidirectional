@@ -26,3 +26,12 @@ test('runtime owns orchestration behind one explicit boot entry point', () => {
   assert.match(runtime, /from '\.\/views\/person\.js'/);
   assert.match(runtime, /from '\.\/pipelines\/expressive\.js'/);
 });
+
+
+test('session stop uses the full reset lifecycle rather than only stopping partner ASR', () => {
+  assert.match(
+    runtime,
+    /function stopListening\s*\(\)\s*\{[\s\S]*?reset\(\);[\s\S]*?\}/,
+    'stop must clear session data, person view state, hints, and in-flight recognition together',
+  );
+});

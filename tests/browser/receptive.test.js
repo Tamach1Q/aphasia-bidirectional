@@ -105,6 +105,27 @@ export function register(test, inject) {
     );
   });
 
+  test('reset discards a simplification that returns after the session ended (FR-006)', async () => {
+    const ui = mountFresh();
+    let resolveReply;
+    receptive.setTransport(() => new Promise((resolve) => { resolveReply = resolve; }));
+
+    const pending = person.handlePartnerTurn({
+      id: 't1',
+      text: 'もし熱が出たら、すぐに電話をしてください。',
+    });
+
+    person.reset();
+    assertEqual(ui.chunks().length, 0, 'session teardown clears settled content immediately');
+    assertEqual(ui.support.hidden, true, 'session teardown removes support actions');
+
+    resolveReply({ meaning: 'ねつが でたら でんわ' });
+    await pending;
+
+    assertEqual(ui.chunks().length, 0, 'a late Worker response must not resurrect ended-session UI');
+    assertEqual(ui.support.hidden, true, 'late responses must not restore ended-session actions');
+  });
+
   test('settled content is never silently replaced by a later chunk', async () => {
     const ui = mountFresh();
     // Stub wording carries no digit on purpose: a numeral absent from the source is a real

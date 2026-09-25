@@ -151,14 +151,9 @@ export function boot() {
   }
 
   function stopListening() {
-    expressive.reset();
-    sessionStore.stopSession();
-    personalContext.clearPersonalContext();
-    partnerSessionActive = false;
-    partnerMicActive = false;
-    stopPartnerRecognition();
-    setSession(false, false);
-    person.setTranscript('');
+    // "止める" is the end of the conversation session, not only a microphone pause.
+    // Reuse the full teardown so no transcript, hint, view state, or in-flight ASR survives.
+    reset();
     dom.setStatus('聞くのを止めました。');
   }
 
