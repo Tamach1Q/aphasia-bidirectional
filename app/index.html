@@ -32,6 +32,12 @@
 
     <section class="main-area" id="mainArea" aria-live="polite"></section>
 
+    <!-- Support-request controls (§14). Deliberately OUTSIDE the main area: the superseded
+         expressive flow still replaces that area wholesale, and 短く must not vanish with
+         it. Only [短く] exists at this stage; T095 adds もう一回 / ゆっくり / ちがう, which
+         stay four distinct controls rather than one generic help button (FR-031). -->
+    <section class="support-row" id="supportRow" aria-label="お願いする" hidden></section>
+
     <section class="bottom-bar" id="bottomBar">
       <button class="speak-button" id="speakButton" type="button">
         <span class="mic-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path><path d="M19 10v1a7 7 0 0 1-14 0v-1"></path><path d="M12 18v3M8 21h8"></path></svg></span>

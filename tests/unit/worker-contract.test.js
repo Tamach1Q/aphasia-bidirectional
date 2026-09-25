@@ -10,9 +10,13 @@ const SRC = readFileSync(new URL('../../worker/index.js', import.meta.url), 'utf
 const TOML = readFileSync(new URL('../../worker/wrangler.toml', import.meta.url), 'utf8');
 const code = stripComments(SRC, 'worker/index.js');
 
-test('the legacy contract still works — the deployed app depends on it until T078', () => {
+test('the legacy contract still works — the DEPLOYED build depends on it until T078', () => {
   // A body WITHOUT `op` must keep reaching the old { text } -> { choices } handler.
-  // Removing it early breaks the live app for the sake of a half-finished replacement.
+  //
+  // As of T068 nothing in this repository calls it any more: the open-question candidate
+  // path is folded into `op=simplify`'s `options`. It survives because the currently
+  // published site is the pre-T068 build and would lose its only AI feature the moment
+  // this handler goes, while the Worker is deployed independently. T078 removes it.
   assert.match(code, /body\?\.op === 'simplify'/, 'op dispatch must be explicit');
   assert.match(code, /choices/, 'the legacy response shape must still be produced');
   assert.match(code, /String\(body\?\.text \|\| ''\)/, 'the legacy text path must survive');

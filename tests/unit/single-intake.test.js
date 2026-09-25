@@ -69,12 +69,31 @@ test('app.js reaches the session only through intake', () => {
 });
 
 test('interim text goes through the single door, and only a listener paints the strip', () => {
-  // The recognition handler now lives in capture/asr.js. The invariant is unchanged:
-  // interim reaches the strip only by way of intake.
+  // The recognition handler lives in capture/asr.js and the painter in views/person.js
+  // (moved there in T064 so the interim/settled split is assertable in a document). The
+  // invariant is unchanged: interim reaches the strip only by way of intake.
   const asrSrc = code(path.join(APP, 'capture/asr.js'));
-  const appSrc = code(path.join(APP, 'app.js'));
+  const personSrc = code(path.join(APP, 'views/person.js'));
   assert.match(asrSrc, /intake\.submitInterim\s*\(/, 'ASR interim must go through intake');
-  assert.match(appSrc, /intake\.onInterim\s*\(/, 'the strip must be painted from the intake listener');
+  assert.match(personSrc, /intake\.onInterim\s*\(/, 'the strip must be painted from the intake listener');
+});
+
+test('only views/person.js writes the transcript strip element (FR-010)', () => {
+  // Two writers is how interim text ends up in the settled area: one of them paints the
+  // wrong element and nothing fails until a participant sees it. app.js may pass the
+  // element to the view — that is wiring — but must not write it.
+  const appSrc = code(path.join(APP, 'app.js'));
+  assert.equal(
+    /partnerTranscript'\)\s*\.\s*(textContent|innerHTML|hidden)/.test(appSrc), false,
+    'app.js must write the strip only through views/person.js',
+  );
+  const offenders = [];
+  for (const file of jsFiles()) {
+    const r = rel(file);
+    if (r === 'views/person.js' || r === 'app.js') continue;
+    if (/partnerTranscript/.test(code(file))) offenders.push(r);
+  }
+  assert.deepEqual(offenders, [], `these also reach the transcript strip: ${offenders.join(', ')}`);
 });
 
 test('the capture layer touches no DOM — which is why it is testable at all', () => {

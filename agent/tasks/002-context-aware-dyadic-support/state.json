@@ -5,16 +5,23 @@
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
   "constitution_min_version": "1.2.0",
-  "phase": "Phase 3 (US-1) part 1 complete — receptive pipeline works end to end; the person-facing renderer is not built",
-  "stages_complete": ["0", "1", "2", "3", "4"],
-  "stage_in_progress": "5 (receptive)",
-  "next_task": "T064",
-  "tasks_complete": 66,
+  "phase": "Phase 3 (US-1) complete — receptive direction works end to end from injected fixtures, including the rendered surface",
+  "stages_complete": ["0", "1", "2", "3", "4", "5"],
+  "stage_in_progress": "6 (expressive)",
+  "next_task": "T070",
+  "tasks_complete": 73,
   "tasks_total": 124,
-  "unit_tests_passing": 170,
-  "browser_tests": "harness only — no suites registered yet (T059a)",
-  "last_verified_commit": "d5d0177",
-  "open_questions": ["OQ-1", "OQ-2", "OQ-3", "OQ-4", "OQ-5", "OQ-7", "OQ-8", "OQ-11"],
+  "unit_tests_passing": 175,
+  "browser_tests": "10/10 — tests/browser/receptive.test.js registered in runner.js",
+  "last_verified_commit": "pending commit of Phase 3 part 2",
+  "open_questions": ["OQ-1", "OQ-2", "OQ-3", "OQ-4", "OQ-5", "OQ-7", "OQ-8", "OQ-10", "OQ-11"],
   "awaiting_device_verification": ["T109", "T110", "T111"],
+  "blockers": [
+    "The DEPLOYED Worker predates T063: it answers {op:'simplify'} with the legacy {choices} shape (verified 2026-09-25 from the running app). op=simplify exists in the repository but not in production, so the receptive direction cannot work against the live endpoint until the Worker is redeployed (`wrangler deploy` from the account holding GEMINI_API_KEY). The pipeline degrades correctly meanwhile — the person keeps the raw transcript."
+  ],
+  "notes": [
+    "OQ-1 and OQ-2 were re-examined in T069 and deliberately LEFT OPEN. Values retained; injected fixtures cannot settle either question (one fixture turn is one ASR final by construction, and the gate thresholds were tuned against these same fixtures). Both need a rehearsal with real recognition — T110, T111.",
+    "OQ-10 reopened in substance: the Stage 5 surface produced a new consent-check false-positive class (「いつがいいですか」 suppressed on the いいです inside it). Fixed and tested; research.md §9 records why the earlier 0.0% figure was a property of the sample."
+  ],
   "updated": "2026-09-25"
 }

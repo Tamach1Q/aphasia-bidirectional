@@ -15,9 +15,26 @@ const REFUSE = ['いいえ', '断り', 'やめておき', '遠慮し', '結構�
 // 結構です is genuinely ambiguous in Japanese — it can accept or decline. It appears in
 // both lists so that either direction counts as "consent language is present", and the
 // check never tries to resolve which.
+//
+// An occurrence followed by か does not count. 「いつがいいですか」 and 「大丈夫ですか」 ASK;
+// they assert nothing, and this check exists to catch assertion (see the header). Found
+// during Stage 5: the plain substring test suppressed 「いつがいいですか」 — a correct
+// simplification of a partner asking which of two times suits — on the 'いいです' inside it,
+// which would have silently disabled the most ordinary receptive case there is
+// (research.md §9). Applied to the source as well as the candidate, which is deliberately
+// the STRICTER reading: a partner asking 「大丈夫ですか」 gives no grounds for a candidate
+// that answers 「大丈夫です」 on the person's behalf.
 function has(list, text) {
   const t = String(text ?? '');
-  return list.filter((w) => t.includes(w));
+  return list.filter((w) => {
+    let from = 0;
+    for (;;) {
+      const at = t.indexOf(w, from);
+      if (at === -1) return false;
+      if (t[at + w.length] !== 'か') return true;   // an assertion, not a question
+      from = at + 1;
+    }
+  });
 }
 
 export const name = 'consent';

@@ -264,6 +264,25 @@ content.
 When a later chunk revises something already settled, the change is **marked as a change**, not
 silently swapped.
 
+#### As built (Stage 5, `app/views/person.js`)
+
+Three decisions the section above left implicit, recorded because each was a fork in the road:
+
+1. **A revision adds a block; it does not replace one.** The revised chunk stays where the person
+   left off reading, dimmed and labelled 「あとで なおしました」, and the corrected wording arrives
+   below it labelled 「なおしたことば」. Replacing the text and calling the replacement "marked"
+   would remove the thing being marked. Its options are disabled rather than deleted — acting on
+   superseded wording is a mistake, but removing controls shifts everything below them mid-read.
+2. **Painting is incremental.** A settled block's element is created once and afterwards only ever
+   gains a marker. Re-rendering the region would return identical text while discarding scroll
+   position, focus, and any option already tapped — FR-010 satisfied on paper and broken in the
+   hand. The one exception is reconstruction from state after the superseded expressive flow
+   replaces the whole main area, which is why the view keeps its entries as data.
+3. **The view subscribes to `capture/intake.js` directly**, rather than being handed text by
+   `app.js`. The view owns both surfaces, so the surface each kind of text reaches is its decision
+   and is assertable in a document (`tests/browser/receptive.test.js`). Wired through `app.js`, the
+   interim/settled split had no test that did not assert against its own wiring.
+
 ### A3.3 Response options (§11.1, §11.5)
 
 `op='simplify'` may return optional tappable options alongside the simplified meaning — this
@@ -718,11 +737,23 @@ Deleted, not flagged off:
 | `showConfirm` (sentence approval form) | `app.js:240` | §16.1 meaning confirmation |
 | `showOutput` 180° overlay | `app.js:244`, `styles.css:49-50` | Phase 2 |
 | `speakConfirmed` TTS | `app.js:246` | Phase 2 |
-| `simplifyPartner` regex classifier | `app.js:56-65` | gate (§A3.1) + `op=simplify` |
+| `simplifyPartner` regex classifier | `app.js:56-65` | gate (§A3.1) + `op=simplify` — **removed T067** |
+| `renderPartnerMeaning` / `showPartnerResult` | `app.js:67-83` | `app/views/person.js` — **removed T067** |
+| open-question answer-candidate call (`{text} → {choices}`) | `app.js:66,71-89` | `op=simplify`'s `options` (§A3.3) — **removed T068**; the Worker handler survives until T078, see below |
+| `showChoices` / `setPartnerTranscript` helpers | `app.js:21,24` | `app/views/person.js` — **removed T067** |
 | Worker prompt + `minItems: 2` schema | `worker/index.js:43-47,65` | §A5.2 / §A5.3 |
 
 Demoted to **optional, not built in Phase 1**: progressive clarification as one repair strategy
 (§13.6), final-sentence rendering (§16.3), TTS, rotated partner output.
+
+> **The legacy Worker handler is still deployed, and the repository no longer calls it.** As of T068
+> nothing in `app/` sends a body without `op`. The `{text} → {choices}` handler stays in
+> `worker/index.js` because the **published site** is still the pre-T068 build and would lose its
+> only AI feature the moment the handler goes; the Worker deploys independently of the static app.
+> T078 removes it. Verified 2026-09-25: the deployed Worker answers `{op:"simplify"}` with the legacy
+> `{choices}` shape, i.e. it predates T063 — **`op=simplify` is in the repository but not in
+> production**, and the receptive direction cannot work against the live endpoint until the Worker is
+> redeployed.
 
 ---
 

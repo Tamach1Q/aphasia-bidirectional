@@ -8,7 +8,7 @@
 import * as inject from '../../app/capture/inject.js';
 
 const SUITES = [
-  // filled in as stages land, e.g. './receptive.test.js'
+  './receptive.test.js',   // T059a — the rendered half of FR-010
 ];
 
 export async function runAll(resultsEl, summaryEl) {

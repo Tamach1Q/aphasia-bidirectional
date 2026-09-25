@@ -204,3 +204,30 @@ test('consent: echoing the source agreement passes', () => {
 test('consent: neutral text is not flagged', () => {
   assert.equal(consent.check('明日の病院は10時です。', '明日の病院、何時？').ok, true);
 });
+
+// Stage 5 finding (research.md §9). A question is not an assertion, and the substring test
+// could not tell them apart: 「いつがいいですか」 was suppressed on the 'いいです' inside it.
+// That candidate is the correct simplification of a partner offering two times — the most
+// ordinary receptive case in the product — so the false positive was not a tolerable one.
+test('consent: an interrogative 〜いいですか asks, and is not an assertion', () => {
+  const r = consent.check('いつがいいですか', '金曜の午後か月曜の午前、どちらがご都合よろしいですか。');
+  assert.equal(r.ok, true, r.detail);
+});
+
+test('consent: 大丈夫ですか in the candidate is a question, not agreement', () => {
+  assert.equal(consent.check('明日は大丈夫ですか', '明日はご都合いかがでしょうか。').ok, true);
+});
+
+test('consent: answering a question the source only ASKED is still caught', () => {
+  // The stricter half of the same change: the source asking 「大丈夫ですか」 gives no
+  // grounds for a candidate that answers 「大丈夫です」 on the person's behalf.
+  const r = consent.check('大丈夫です。', '明日は大丈夫ですか？');
+  assert.equal(r.ok, false);
+  assert.match(r.detail, /asserts consent/);
+});
+
+test('consent: an assertion is still caught when a question follows it', () => {
+  // 'お願いします' asserts; the trailing question must not launder it.
+  const r = consent.check('はい、お願いします。それでいいですか', '…あの…');
+  assert.equal(r.ok, false);
+});

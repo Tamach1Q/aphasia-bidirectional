@@ -155,7 +155,9 @@ settle, never silently rewrite) through `app/capture/inject.js` with no micropho
 - [x] T058 [P] [US1] Write `tests/unit/chunker.test.js` — chunk boundary rule per research.md §4; a chunk once settled is never re-emitted
 - [x] T059 [US1] Write `tests/unit/receptive.test.js` — gated-out utterance produces **zero fetch calls** (asserts the call COUNT via an injectable transport, not merely the absence of output); a re-emitted growing turn is marked as revising its predecessor (FR-010)
   - **Changed from the planned `tests/browser/receptive.test.html`.** `app/pipelines/receptive.js` turned out DOM-free — it takes a turn and returns a result — so the pipeline half needs no document and is cheaper and more precise to assert in node. What genuinely needs a browser is the *rendered* behaviour, which did not exist when this was written; that half is now T059a, after the renderer that owns it.
-- [ ] T059a [US1] Write `tests/browser/receptive.test.html` — the RENDERED half of FR-010: settled content in the main area is never silently replaced, a revision is visibly marked, and interim text reaches only the transcript strip. Depends on T064/T065; drive it through `app/capture/inject.js`
+- [x] T059a [US1] Write `tests/browser/receptive.test.html` — the RENDERED half of FR-010: settled content in the main area is never silently replaced, a revision is visibly marked, and interim text reaches only the transcript strip. Depends on T064/T065; drive it through `app/capture/inject.js`
+  - **Written as `tests/browser/receptive.test.js`, not `.test.html`.** The harness from T037 runs suites as ES modules listed in `tests/browser/runner.js` and exporting `register(test, inject)`, from the single page `tests/browser/index.html`. A standalone `.test.html` would be a second harness with its own runner and its own ways to fail. Running in a real document was the requirement; the extension was not.
+  - **10/10 passing**, verified in Chrome against the repo-root dev server. Two failures found real defects while it was being written, both now fixed: `render()` was rebuilding every settled block (identical text, but discarding scroll position and any tapped option), and the `consent` safety check suppressed 「いつがいいですか」 on the `いいです` inside it (research.md §9).
 
 ### Implementation for User Story 1
 
@@ -164,12 +166,20 @@ settle, never silently rewrite) through `app/capture/inject.js` with no micropho
 - [x] T061 [P] [US1] Implement `app/pipelines/chunker.js` per research.md §4 (one ASR `isFinal` = one chunk, provisional)
 - [x] T062 [US1] Implement `app/pipelines/receptive.js` — gate → simplify → safety → settle; **the gate MUST run before any fetch** (FR-008)
 - [x] T063 [US1] Add `op: "simplify"` to `worker/index.js` per contracts/worker-api.md §"simplify", using `worker/prompts/simplify.txt` and the model chosen in T023
-- [ ] T064 [US1] Implement the settled-region renderer in `app/views/person.js` — settled chunks only; interim text goes exclusively to the transcript strip (FR-010, §A3.2)
-- [ ] T065 [US1] Implement revision marking in `app/views/person.js` — when a later chunk revises settled content, mark the change rather than swapping silently
-- [ ] T066 [US1] Wire `[短く]` in `app/views/person.js` to force simplification of the most recent partner turn via `app/pipelines/receptive.js`, bypassing the gate result (FR-009)
-- [ ] T067 [US1] Delete `simplifyPartner()` (`app/app.js:56-65`), `renderPartnerMeaning`/`showPartnerResult` (`app/app.js:67-83`), and the interim→main-area coupling at `app/app.js:113`
-- [ ] T068 [US1] Fold the old open-question answer-candidate branch into `op=simplify`'s optional `options` field in `worker/prompts/simplify.txt` and `app/pipelines/receptive.js`; delete the separate path from `app/app.js`
-- [ ] T069 [US1] Confirm OQ-1 and OQ-2 against the fixtures and record the confirmed values in `research.md` §4 and §5
+- [x] T064 [US1] Implement the settled-region renderer in `app/views/person.js` — settled chunks only; interim text goes exclusively to the transcript strip (FR-010, §A3.2)
+  - The view subscribes to `capture/intake.js` itself rather than being fed by `app.js`, so which surface each kind of text reaches is the view's decision and is assertable in a document. `tests/unit/single-intake.test.js` was updated to pin the painter in `views/person.js`; the single-door invariant is unchanged.
+  - Painting is incremental: a settled block's element is created once and afterwards only ever gains a marker. See §A3.2 "As built" for why a rebuild is not equivalent.
+- [x] T065 [US1] Implement revision marking in `app/views/person.js` — when a later chunk revises settled content, mark the change rather than swapping silently
+  - A revision **adds** a block. The revised chunk stays on screen, dimmed and labelled 「あとで なおしました」; the correction arrives below it as 「なおしたことば」. Replacing the text would remove the thing the requirement says to mark.
+- [x] T066 [US1] Wire `[短く]` in `app/views/person.js` to force simplification of the most recent partner turn via `app/pipelines/receptive.js`, bypassing the gate result (FR-009)
+  - Rendered in a new `#supportRow` in `app/index.html`, deliberately OUTSIDE the main area so the superseded expressive flow cannot wipe it out. The other three support requests (もう一回 / ゆっくり / ちがう) remain T095.
+- [x] T067 [US1] Delete `simplifyPartner()` (`app/app.js:56-65`), `renderPartnerMeaning`/`showPartnerResult` (`app/app.js:67-83`), and the interim→main-area coupling at `app/app.js:113`
+  - `showChoices` and `setPartnerTranscript` went with them — both had no callers left, and `views/person.js` builds options with the DOM API rather than an `innerHTML` string because it must also mark the chosen one and must never inject model output as markup. `showDontUnderstand` is now unreachable and is left for T097, which owns it.
+- [x] T068 [US1] Fold the old open-question answer-candidate branch into `op=simplify`'s optional `options` field in `worker/prompts/simplify.txt` and `app/pipelines/receptive.js`; delete the separate path from `app/app.js`
+  - `worker/prompts/simplify.txt` now states explicitly that an open (5W1H) question must get concrete options rather than being forced into はい／いいえ — the one thing the deleted path did that the prompt did not already say.
+  - ⚠️ **The deployed Worker still predates T063**: it answers `{op:"simplify"}` with the legacy `{choices}` shape (verified 2026-09-25 from the running app). The pipeline therefore returns `skipped: 'no-result'` and the person keeps the raw transcript — correct behaviour, but the receptive direction does not work against production until the Worker is redeployed. Not a code task; needs `wrangler deploy` with the account that holds the secret.
+- [x] T069 [US1] Confirm OQ-1 and OQ-2 against the fixtures and record the confirmed values in `research.md` §4 and §5
+  - Both values **retained**; both questions **still open**, recorded as such in research.md §4 and §5. Fixture agreement cannot close either: injected fixtures make one turn one final by construction, so OQ-1's doubt (fragmented finals) is unreachable from the test path, and the gate thresholds were tuned against these same fixtures. Both need a rehearsal with real recognition (T110, T111).
 
 **Checkpoint**: US-1 works end to end from injected fixtures. Receptive direction is demonstrable.
 

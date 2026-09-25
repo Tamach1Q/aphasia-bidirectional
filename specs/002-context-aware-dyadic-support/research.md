@@ -327,6 +327,28 @@ settle mid-thought. Confirm or replace in Stage 5 using `f02` and `f03`. If repl
 the next option is accumulating finals until a sentence-ending cue or a pause threshold — which
 introduces a latency/completeness trade-off that must then be measured, not assumed.
 
+#### Stage 5 check (T069, 2026-09-25) — value RETAINED, question still OPEN
+
+Confirmed against the fixtures and the rendered surface
+(`tests/unit/chunker.test.js`, `tests/browser/receptive.test.js`):
+
+| | |
+|---|---|
+| Rule in force | one ASR `isFinal` = one chunk |
+| `f02`, `f03` | each fixture's partner utterance arrives as one final and settles as one chunk; no mid-thought split observed |
+| Growing re-emission | a second final that extends the first is marked `revises`, and the view keeps the earlier chunk on screen with a visible label rather than swapping it |
+
+What the mitigation actually is: the weakness above was addressed in the **view**, not the rule. A
+chunk that settles mid-thought is no longer a dead end, because its continuation arrives as a marked
+revision and both remain visible (`app/views/person.js`). That removes the cost the rule risked
+imposing without introducing the latency trade-off that accumulating finals would.
+
+**OQ-1 is NOT closed.** Everything above was produced by injected fixtures, where one fixture turn
+is one final by construction — the test path cannot generate the fragmented-finals behaviour that
+made the rule doubtful in the first place. Only real recognition on a device can, so the question
+stays open pending T110. If fragmentation turns out to be common, the revision marking is what makes
+it survivable, not a reason to leave the rule unexamined.
+
 ---
 
 ## 5. Gate thresholds (OQ-2) — provisional
@@ -361,6 +383,27 @@ verified end to end against the live model — `f01` gates out in 1 ms with zero
 **OQ-2 is not closed by that.** Four synthetic fixtures are what the thresholds were tuned
 *against*, so agreement with them is close to circular. What OQ-2 actually asks for is calibration
 against **recorded partner utterances**, which the project does not yet have. T069 remains open.
+
+#### Stage 5 check (T069, 2026-09-25) — values RETAINED, question still OPEN
+
+The five signals and their thresholds are unchanged. What Stage 5 added is the check the table above
+could not make: that the gate's decision is what the person actually experiences.
+
+| Assertion | Where |
+|---|---|
+| a gated-out utterance produces **zero** requests — asserted as a call count | `tests/unit/receptive.test.js`, `tests/browser/receptive.test.js` |
+| a gated-out utterance leaves the main area untouched and the person keeps the raw strip | `tests/browser/receptive.test.js` |
+| `[短く]` reaches the model for that same utterance | both suites |
+
+The recovery path FR-009 promises is therefore real: a miss costs one tap, which is the asymmetry the
+thresholds were biased for.
+
+**OQ-2 stays open, and for the same reason as before** — the fixtures are still the material the
+thresholds were tuned against. One correction to how the question should be settled: the missing
+input is not a larger fixture set, since more synthetic material authored by the same hand reproduces
+the same circularity. It is recorded partner utterances from a rehearsal (T110, T111). The false-miss
+rate against real speech is the number OQ-2 wants, and it cannot be produced from this repository
+as it stands.
 
 #### RESOLVED 2026-09-25: contrastive and exception markers are gate signals
 
@@ -518,6 +561,35 @@ drawn from one evaluation run, and contains no adversarial cases.
 What it does establish is that the layer is no longer useless — at 43.6%, nearly half of all
 correct output would have degraded to fallback, and the product would have looked rigorous while
 failing to work. Re-measure whenever the checks change, and again on Stage 5 output.
+
+### Stage 5 finding — 2026-09-25 (T064): `consent` could not tell a question from an assertion
+
+Building the rendered receptive surface surfaced a fourth error of the same family as the three
+above, and it was found the same way — by running the layer over output the product would really
+display.
+
+**What happened.** A partner offering two appointment times
+(「金曜の午後か月曜の午前、どちらがご都合よろしいですか。」) simplifies correctly to
+「いつがいいですか」 plus the two times as tappable options. The layer suppressed it. The `consent`
+check tests for agreement phrases by substring, and `いいです` is inside 「いいですか」.
+
+**Why it mattered more than its size suggests.** This is not an exotic case; a question offering a
+choice is the single most ordinary thing the receptive direction exists to simplify (§11.5), and
+`options` is the field that carries it (§A3.3). The failure was also invisible in the only place
+anyone would have looked: suppression degrades to the raw transcript, so the product would have
+appeared to be working — just never simplifying questions.
+
+**Fix.** An occurrence followed by か is not counted. A question asks; this check exists to catch
+assertion, which is what its own header says. Applied to the source as well as the candidate, which
+is deliberately the **stricter** reading: a partner asking 「大丈夫ですか」 gives no grounds for a
+candidate that answers 「大丈夫です」 for the person. Four cases added to
+`tests/unit/safety-checks.test.js`, including the inverse (an assertion followed by an unrelated
+question must still be caught).
+
+**What this says about the 0.0% figure.** It was measured over Stage 0 `simplify` and `hypotheses`
+output, none of which happened to be interrogative. The rate is a property of the sample, not of the
+layer, and one new output shape was enough to produce a fresh false-positive class. OQ-10 stays open,
+and the re-measurement it needs is over output from a rehearsal rather than a larger fixture run.
 
 ---
 

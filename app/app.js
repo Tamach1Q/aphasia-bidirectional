@@ -3,6 +3,8 @@ import * as personalContext from './core/personal-context.js';
 import * as inject from './capture/inject.js';
 import * as intake from './capture/intake.js';
 import * as asr from './capture/asr.js';
+import * as receptive from './pipelines/receptive.js';
+import * as person from './views/person.js';
 
 (() => {
   const $ = (id) => document.getElementById(id);
@@ -25,10 +27,6 @@ import * as asr from './capture/asr.js';
     if (!sessionStore.isActive()) return;
     intake.submitTurn({ speaker, text, source });
   }
-  // Interim recognition output goes through the same door and reaches the transcript
-  // strip only — never a Turn, never the settled main area (FR-002, FR-010).
-  intake.onInterim((text) => setPartnerTranscript(text));
-  intake.onTurn((turn) => { if (turn.speaker === 'partner') showPartnerResult(turn.text); });
   // T034: injection is reachable only behind ?inject=1, never in a participant session.
   // Exposed on window so a researcher (or the browser test page) can drive it from the
   // console without a microphone.
@@ -54,69 +52,61 @@ import * as asr from './capture/asr.js';
   function resumePartnerListening() { if (state.partnerSessionActive && !state.partnerMicActive) beginListening(); }
   function setBottomBar(visible) { $('bottomBar').hidden = !visible; }
   function setMain(html) { $('mainArea').innerHTML = html; }
-  function showChoices(box, items, onClick) { box.innerHTML = ''; items.forEach((item) => { const button = document.createElement('button'); button.className = `choice${item.length > 15 ? ' long-choice' : ''}`; button.type = 'button'; button.textContent = item; button.addEventListener('click', () => onClick(item)); box.appendChild(button); }); }
+  // `showChoices` is gone with its only caller (T067). views/person.js renders options
+  // with the DOM API instead of an innerHTML string, because it also has to mark the
+  // chosen one and must never inject model output as markup.
   function addAction(parent, text, className, callback) { const button = document.createElement('button'); button.type = 'button'; button.className = className; button.innerHTML = text; button.addEventListener('click', callback); parent.appendChild(button); }
   function escapeHtml(text) { return text.replace(/[&<>"']/g, (char) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char])); }
-  function setPartnerTranscript(text) { const el = $('partnerTranscript'); if (text) { el.textContent = text; el.hidden = false; } else { el.textContent = ''; el.hidden = true; } }
+  // The transcript strip has exactly one writer, views/person.js — see its header for why
+  // the interim/settled split is enforced there rather than here.
 
   // ---- IDLE ----
-  function renderIdle() { setMain('<div class="idle-state"></div>'); setBottomBar(true); }
+  // Returning to the main area hands it back to views/person.js, which repaints whatever
+  // has settled rather than clearing it — leaving the expressive flow must not destroy
+  // settled receptive content (FR-010).
+  function renderIdle() { person.repaint(); setBottomBar(true); }
 
-  // ---- AI-assisted answer suggestions for open-ended partner questions ----
-  // Always on: calls a small proxy (worker/) that holds the Gemini key server-side, so the
-  // static frontend never embeds a secret. See worker/README.md — this endpoint is demo-scoped
-  // infrastructure, freely replaceable with a production backend without touching this contract
-  // ({ text } -> { choices } | { error }).
-  const AI_PROXY_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
-  async function generateOpenQuestionChoices(text) {
-    const started = performance.now();
-    try {
-      const res = await fetch(AI_PROXY_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
-      if (!Array.isArray(data.choices) || !data.choices.length) throw new Error('候補が空でした');
-      logLatency('llm: ai proxy open-question choices', started, text);
-      return { choices: data.choices.slice(0, 3).map(String), error:null };
-    } catch (err) {
-      console.warn('AI choice generation failed', err);
-      logLatency('llm: ai proxy open-question choices (failed)', started, text);
-      return { choices:null, error: err.message || String(err) };
-    }
-  }
+  // ---- receptive direction: transport + view wiring (Stage 5) ----
+  // The regex classifier, the separate open-question candidate call, and the main-area
+  // rewrite they drove are gone (T067, T068). What replaced them:
+  //
+  //   intake.onTurn → views/person.js → pipelines/receptive.js → gate → op=simplify → safety
+  //
+  // The gate is local and runs first, so an ordinary utterance makes no request at all
+  // (FR-008), and tappable replies now arrive as `op=simplify`'s optional `options` rather
+  // than from a second endpoint (§A3.3).
+  //
+  // The Worker holds the model key server-side, so this static frontend never embeds one.
+  // See worker/README.md — demo-scoped infrastructure, replaceable without touching the
+  // contract in contracts/worker-api.md.
+  const WORKER_URL = 'https://aphasia-ai-proxy.tamach1q.workers.dev';
+  receptive.setTransport(async (body) => {
+    const res = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error || `HTTP ${res.status}` };
+    return data;
+  });
 
-  // ---- PARTNER_MEANING_READY ----
-  function simplifyPartner(text) {
-    const clean = text.trim();
-    if (!clean) return { meaning:'聞き取れませんでした。もう一度お願いします。', choices:[] };
-    if (/金曜|月曜|いつ|何時|午後|午前/.test(clean)) return { meaning:'いつがいいですか？', choices:['金曜日の午後','月曜日の午前','どちらでもいい'] };
-    // Open-ended (5W1H-style) questions have no yes/no answer — don't force one just because a topic word also matched below.
-    if (/どんな|どういう|なぜ|どうして|どうやって|どのように|どのくらい|どちら|どこ|だれ|誰|何|なに/.test(clean)) return { meaning:'相手が質問しています。ことばで答えを作れます。', choices:[], openQuestion:true };
-    if (/来る|行く|できますか|大丈夫|いいですか/.test(clean)) return { meaning:'できますか？', choices:['はい、できます','いいえ、できません','わかりません'] };
-    if (/病院|医者|診察|学校|仕事|電車|家族|娘|息子|予約|薬|確認|変更|連絡/.test(clean)) return { meaning:'相手の話について、返事を選びますか？', choices:['はい','いいえ','もう一度聞く'] };
-    return { meaning:'うまく処理できませんでした。もう一度お願いします。', choices:[] };
-  }
-  let meaningGeneration = 0;
-  function renderPartnerMeaning(text) {
-    const result = simplifyPartner(text);
-    const generation = ++meaningGeneration;
-    setMain(`<div class="meaning-view"><p class="eyebrow">相手は何を聞いていますか？</p><p class="meaning" id="partnerMeaning">${escapeHtml(result.meaning)}</p>${result.openQuestion ? '<p class="small-note" id="aiLoading">AIが答えの候補を考えています…</p>' : ''}<div class="choice-list" id="partnerChoices"></div><button class="text-button" id="dontUnderstandButton" type="button">わかりません</button></div>`);
-    showChoices($('partnerChoices'), result.choices, (choice) => { if (choice === 'もう一度聞く' || choice === 'わかりません') return showDontUnderstand(); setStatus('返事を選びました。必要なら自分のことばを作れます。'); });
-    $('dontUnderstandButton').addEventListener('click', showDontUnderstand);
-    setBottomBar(true);
-    if (result.openQuestion) {
-      generateOpenQuestionChoices(text).then(({ choices, error }) => {
-        if (generation !== meaningGeneration) return; // a newer utterance or reset has since replaced this screen
-        const loading = $('aiLoading'); if (loading) loading.remove();
-        if (choices) return showChoices($('partnerChoices'), choices, (choice) => setStatus('答えを選びました。必要なら自分のことばを作れます。'));
-        if (error) { const note = document.createElement('p'); note.className = 'small-note ai-error'; note.textContent = `AIの候補生成に失敗しました（${error}）。下のマイク・文字入力で答えられます。`; $('partnerChoices').before(note); }
-      });
-    }
-  }
-  function showPartnerResult(text) { const started = performance.now(); setPartnerTranscript(text); renderPartnerMeaning(text); logLatency('llm: receptive simplification', started, text); }
+  person.mount({
+    settledEl: $('mainArea'),
+    transcriptEl: $('partnerTranscript'),
+    supportEl: $('supportRow'),
+    config: config002,
+    onStatus: (text) => setStatus(text),
+    onOption: () => setStatus('返事を選びました。必要なら自分のことばを作れます。'),
+    onLatency: logLatency,
+  });
+
+  // `person.mount` subscribes to capture/intake.js itself: interim text to the transcript
+  // strip, settled partner turns to the receptive pipeline (FR-002, FR-010). The view owns
+  // both surfaces, so the split is asserted where it is visible — see its header.
+
+  // TODO(T097): unreachable since T067 removed its only caller; deleted with the rest of
+  // the 「わかりません」 control in Phase 5 (FR-032).
   function showDontUnderstand() {
     setMain(`<div class="dont-understand-view"><p class="eyebrow">わかりません</p><h2>もう一度、聞いてみましょう。</h2><div class="flow-actions"><button class="choice long-choice" id="reListenButton" type="button">${icon('mic')} 相手にもう一度話してもらう</button><button class="choice" id="goExpressiveButton" type="button">${icon('mic')} 自分から伝える</button></div></div>`);
     $('reListenButton').addEventListener('click', beginListening);
@@ -131,7 +121,7 @@ import * as asr from './capture/asr.js';
   function beginListening() {
     if (asr.isPartnerRunning()) return;
     if (!sessionStore.isActive()) sessionStore.startSession(config002);
-    setSession(true, true); setStatus('相手の話を聞いています', true); setPartnerTranscript('聞いています…');
+    setSession(true, true); setStatus('相手の話を聞いています', true); person.setTranscript('聞いています…');
     const { started, reason } = asr.startPartner({
       enabled: config002.ai !== 'off',
       onError: (message) => setStatus(message),
@@ -141,12 +131,12 @@ import * as asr from './capture/asr.js';
     // Never fabricate a partner utterance. Inventing one would put words nobody said
     // into the context store, where they would go on to feed hypothesis generation.
     setSession(true, false);
-    setPartnerTranscript('');
+    person.setTranscript('');
     setStatus(reason === 'ai-off'
       ? '音声は使いません。文字で入力できます。'
       : 'この端末では音声を聞き取れません。文字で入力できます。');
   }
-  function stopListening() { sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); setPartnerTranscript(''); setStatus('聞くのを止めました。'); }
+  function stopListening() { sessionStore.stopSession(); state.partnerSessionActive = false; state.partnerMicActive = false; state.listening = false; stopPartnerRecognition(); setSession(false, false); person.setTranscript(''); setStatus('聞くのを止めました。'); }
 
   // ---- CAPTURING_USER ----
   function renderCapturing() { setMain('<div class="capturing-view"><span class="rec-dot" aria-hidden="true"></span><p>あなたのことばを聞いています…</p><p class="small-note" id="capturingPartial"></p><p class="small-note">話し終わったら、下のボタンを押してください。</p></div>'); setBottomBar(true); }
@@ -278,7 +268,9 @@ import * as asr from './capture/asr.js';
   function speakConfirmed() { if (!state.confirmed) return; if (!window.speechSynthesis) return setStatus('この端末では読み上げを使えません。'); window.speechSynthesis.cancel(); const utterance = new SpeechSynthesisUtterance(state.message); utterance.lang = 'ja-JP'; window.speechSynthesis.speak(utterance); setStatus('確認したことばを読み上げています。'); }
 
   function reset() {
-    meaningGeneration += 1; // invalidate any in-flight AI answer-suggestion call
+    // Clears the settled region and the chunker with it: 最初から means the conversation
+    // starts over, so nothing may carry a revision link to a chunk that no longer exists.
+    person.reset();
     state.listening = false;
     stopPartnerRecognition();
     stopExpressiveRecognition();
@@ -286,7 +278,7 @@ import * as asr from './capture/asr.js';
     state.partnerSessionActive = false; state.partnerMicActive = false; state.expressive = false; state.round = 0; state.noneCounts = {}; state.known = []; state.answers = {}; state.clarificationHistory = []; state.confirmed = false; state.fragment = ''; state.message = '';
     $('outputOverlay').hidden = true; $('outputOverlay').innerHTML = '';
     $('speakButton').classList.remove('recording'); $('speakLabel').textContent = '話す';
-    setPartnerTranscript('');
+    person.setTranscript('');
     setSession(false, false);
     renderIdle();
     setStatus('準備できています');
@@ -294,7 +286,12 @@ import * as asr from './capture/asr.js';
 
   $('listenButton').addEventListener('click', beginListening);
   $('stopListenButton').addEventListener('click', stopListening);
-  $('speakButton').addEventListener('click', () => state.expressive ? finishExpressive($('fragmentInput') ? $('fragmentInput').value : expressivePartial) : startExpressive());
+  // `expressivePartial` was a local of the pre-Stage-3 handler and no longer exists; reading
+  // it threw a ReferenceError on every 終わる tap that happened without the typed form open.
+  // Recognition state moved into capture/asr.js, which is where the partial now comes from.
+  $('speakButton').addEventListener('click', () => (state.expressive
+    ? finishExpressive($('fragmentInput') ? $('fragmentInput').value : asr.getExpressivePartial())
+    : startExpressive()));
   $('typeButton').addEventListener('click', () => renderFragmentForm(state.fragment, true));
   $('resetButton').addEventListener('click', reset);
 

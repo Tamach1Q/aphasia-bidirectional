@@ -60,6 +60,14 @@ node --test tests/unit/*.test.js   # pure modules: safety, evidence, gate, chunk
 #   http://localhost:8000/tests/browser/   — pipeline, view, and confirmation checks
 ```
 
+The browser page runs every suite listed in `tests/browser/runner.js` on load and prints
+`N/M passed`. Suites so far: `receptive.test.js` (the rendered half of FR-010).
+
+> **Reload with the cache bypassed** (⇧⌘R, or a fresh port) after editing a module the suites
+> import. Chrome will otherwise serve the previous module graph, and the failure looks like a
+> product bug: a suite failing on behaviour that has already been fixed on disk. This cost real time
+> once — a `consent` check fix appeared not to work for exactly this reason.
+
 Everything below "must hold" is assertable without a microphone, through
 [`contracts/injected-transcript.md`](./contracts/injected-transcript.md).
 
