@@ -207,19 +207,20 @@ invoke `[ことばのヒント]` and assert the partner view appears with verifi
 
 - [x] T075 [P] [US2] Implement `app/core/hint-store.js` as pure data with no render side effect, exporting writers (`setHypotheses`, `setUnknown`, `clearHints`) and the reader (`getHintSnapshot`) as **separate surfaces** per data-model.md §5.1
 - [x] T076 [P] [US2] Implement `app/evidence/verify.js` — verify `turn`/`confirmed`/`personalContext` pointers against the live session; drop the pointer, keep the hypothesis (FR-017, data-model.md §7)
-- [ ] T077 [US2] Implement `app/pipelines/expressive.js` — fragment → hypotheses request → safety → evidence verification → `setHypotheses()` / `setUnknown()`. It imports the writers only, never `getHintSnapshot`. **Nothing renders at any step**
-- [ ] T078 [US2] Add `op: "hypotheses"` to `worker/index.js` per contracts/worker-api.md §"hypotheses", using `worker/prompts/hypotheses.txt` and the model chosen in T023
-- [ ] T079 [US2] Set the `hypotheses` response schema in `worker/index.js` to `minItems: 0, maxItems: 3` and support `result: "unknown"` — the old `minItems: 2` made zero candidates unrepresentable (FR-015)
-- [ ] T080 [US2] Implement fragment capture in `app/capture/asr.js` WITHOUT a mandatory review step; make editing reachable on demand only (FR-013)
-- [ ] T081 [US2] Implement `app/views/partner.js` — the sole caller of `getHintSnapshot`; renders 0–3 hypotheses, each marked as unconfirmed AI inference, each with verified excerpts quoted from the conversation (FR-018, §A7.2)
-- [ ] T082 [US2] Implement `[ことばのヒント]` in `app/views/person.js` as the ONLY entry point to `app/views/partner.js`, with no persistent panel and no availability indicator (FR-019, FR-020)
-- [ ] T083 [US2] Implement the two-structure confirmation flow per data-model.md §8: `SelectedConfirmation {hypothesisId, text, basis[]}` held **internally** by `app/views/partner.js` (basis derived from the hypothesis's verified evidence), and `ConfirmationRequest {hypothesisId, text}` as the only thing `app/views/person.js` sees
-- [ ] T084 [US2] Implement the single-hypothesis confirmation surface in `app/views/person.js` with `[はい]`/`[ちがう]` (FR-023, §A7.3)
-- [ ] T085 [US2] Wire `[はい]` in `app/views/person.js` to `confirmSelected()` in `app/core/session.js` as the only write path into `session.confirmed`. `confirmSelected()` takes **no arguments from the UI** — it commits the partner-side snapshot, so `session.js` never reads the hint store and `basis` is not lost (FR-024, data-model.md §8)
-- [ ] T086 [US2] Delete the clarification machinery from `app/app.js`: `ambiguities` (5-9), `nextClarification`/`showClarification`/`noneOfThese`/`choicesFor` (183-186), `contentChoicesFor`/`contentClause`/`buildMessage`/`timeWord`/`topicWord`/`personMention` (198-228), `directCandidates`/`showDirectCandidates` (229-239)
-- [ ] T087 [US2] Delete `modeA` (`app/app.js:3`), the mandatory `renderFragmentForm` on capture (`app/app.js:163-170`), and — now that T086 removed its last readers — the flat `state` object at `app/app.js:4` (deferred here from T032)
-- [ ] T088 [US2] Delete `showConfirm` (`app/app.js:240`), `showOutput`/`speakConfirmed` (`app/app.js:244-246`) and the rotation CSS (`app/styles.css:49-50`) — Phase 2 features
-- [ ] T089 [US2] Migrate shared DOM helpers from `app/app.js:20-23,173-180` into `app/views/dom.js`
+- [x] T077 [US2] Implement `app/pipelines/expressive.js` — fragment → hypotheses request → safety → evidence verification → `setHypotheses()` / `setUnknown()`. It imports the writers only, never `getHintSnapshot`. **Nothing renders at any step**
+- [x] T078 [US2] Add `op: "hypotheses"` to `worker/index.js` per contracts/worker-api.md §"hypotheses", using `worker/prompts/hypotheses.txt` and the model chosen in T023
+- [x] T079 [US2] Set the `hypotheses` response schema in `worker/index.js` to `minItems: 0, maxItems: 3` and support `result: "unknown"` — the old `minItems: 2` made zero candidates unrepresentable (FR-015)
+- [x] T080 [US2] Implement fragment capture in `app/capture/asr.js` WITHOUT a mandatory review step; make editing reachable on demand only (FR-013)
+  - `capture/asr.js` already settled a person Turn without a review gate from Stage 3; T080 removed the remaining mandatory review in `app.js` and kept the typed form as an on-demand edit/recovery path.
+- [x] T081 [US2] Implement `app/views/partner.js` — the sole caller of `getHintSnapshot`; renders 0–3 hypotheses, each marked as unconfirmed AI inference, each with verified excerpts quoted from the conversation (FR-018, §A7.2)
+- [x] T082 [US2] Implement `[ことばのヒント]` in `app/views/person.js` as the ONLY entry point to `app/views/partner.js`, with no persistent panel and no availability indicator (FR-019, FR-020)
+- [x] T083 [US2] Implement the two-structure confirmation flow per data-model.md §8: `SelectedConfirmation {hypothesisId, text, basis[]}` held **internally** by `app/views/partner.js` (basis derived from the hypothesis's verified evidence), and `ConfirmationRequest {hypothesisId, text}` as the only thing `app/views/person.js` sees
+- [x] T084 [US2] Implement the single-hypothesis confirmation surface in `app/views/person.js` with `[はい]`/`[ちがう]` (FR-023, §A7.3)
+- [x] T085 [US2] Wire `[はい]` in `app/views/person.js` to `confirmSelected()` in `app/core/session.js` as the only write path into `session.confirmed`. `confirmSelected()` takes **no arguments from the UI** — it commits the partner-side snapshot, so `session.js` never reads the hint store and `basis` is not lost (FR-024, data-model.md §8)
+- [x] T086 [US2] Delete the clarification machinery from `app/app.js`: `ambiguities` (5-9), `nextClarification`/`showClarification`/`noneOfThese`/`choicesFor` (183-186), `contentChoicesFor`/`contentClause`/`buildMessage`/`timeWord`/`topicWord`/`personMention` (198-228), `directCandidates`/`showDirectCandidates` (229-239)
+- [x] T087 [US2] Delete `modeA` (`app/app.js:3`), the mandatory `renderFragmentForm` on capture (`app/app.js:163-170`), and — now that T086 removed its last readers — the flat `state` object at `app/app.js:4` (deferred here from T032)
+- [x] T088 [US2] Delete `showConfirm` (`app/app.js:240`), `showOutput`/`speakConfirmed` (`app/app.js:244-246`) and the rotation CSS (`app/styles.css:49-50`) — Phase 2 features
+- [x] T089 [US2] Migrate shared DOM helpers from `app/app.js:20-23,173-180` into `app/views/dom.js`
 
 **Checkpoint**: US-1 and US-2 both work. The product thesis is demonstrable — the system understands
 something and does not interrupt.

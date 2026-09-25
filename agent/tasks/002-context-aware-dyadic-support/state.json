@@ -5,22 +5,23 @@
   "route": "coding",
   "supersedes": "001-aphasia-conversation-aid",
   "constitution_min_version": "1.2.0",
-  "phase": "Phase 4 (US-2) foundation complete through T076 — hint store and evidence verification landed; OQ-11 resolved before expressive pipeline",
+  "phase": "Phase 4 (US-2) complete — expressive hypotheses are generated silently, explicitly opened by the partner, evidence-verified, and confirmed one at a time",
   "stages_complete": [
     "0",
     "1",
     "2",
     "3",
     "4",
-    "5"
+    "5",
+    "6"
   ],
-  "stage_in_progress": "6 (expressive)",
-  "next_task": "T077",
-  "tasks_complete": 80,
+  "stage_in_progress": "7 (uncertainty)",
+  "next_task": "T090",
+  "tasks_complete": 93,
   "tasks_total": 124,
-  "unit_tests_passing": 175,
-  "browser_tests": "10/10 — tests/browser/receptive.test.js registered in runner.js",
-  "last_verified_commit": "4b13542 (175 unit, 11/11 browser); T070-T076 added after that and require local/browser rerun",
+  "unit_tests_passing": 204,
+  "browser_tests": "18/18 — GitHub Actions Test app run 36087135507",
+  "last_verified_commit": "6996ed2c24f5a0a2b08da15d6b93708926a720d6 (204 unit, 18/18 browser)",
   "open_questions": [
     "OQ-1",
     "OQ-2",
@@ -43,7 +44,8 @@
     "OQ-1 and OQ-2 were re-examined in T069 and deliberately LEFT OPEN. Values retained; injected fixtures cannot settle either question (one fixture turn is one ASR final by construction, and the gate thresholds were tuned against these same fixtures). Both need a rehearsal with real recognition — T110, T111.",
     "OQ-10 reopened in substance: the Stage 5 surface produced a new consent-check false-positive class (「いつがいいですか」 suppressed on the いいです inside it). Fixed and tested; research.md §9 records why the earlier 0.0% figure was a property of the sample.",
     "OQ-11 resolved 2026-09-25 before T077: interpret Safety grounds on textual values from the exact hypotheses request body actually sent; evidence verification remains a separate downstream responsibility.",
-    "T070-T076 implemented in a73c781. This connector environment cannot clone/run the repository because direct GitHub DNS is unavailable; do not treat the previous 175/11 counts as verification of the new tests."
+    "Phase 4 CI checkpoint at 6996ed2c24f5a0a2b08da15d6b93708926a720d6: 204/204 Node unit tests and 18/18 headless-Chrome browser tests green.",
+    "No Worker deploy was performed. Repository Worker now contains op=hypotheses, but production Worker credentials/deploy remain separate."
   ],
   "updated": "2026-09-25"
 }
